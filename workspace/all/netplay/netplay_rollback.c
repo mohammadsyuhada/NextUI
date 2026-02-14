@@ -464,6 +464,26 @@ int Rollback_update(uint16_t local_input) {
     pthread_mutex_lock(&rb.mutex);
 
     //
+    // 0. Enforce max-ahead limit: don't let the client run more than
+    //    ROLLBACK_MAX_AHEAD frames past the last confirmed remote input.
+    //    This prevents ring buffer wraparound from overwriting unconfirmed slots.
+    //    If we're too far ahead, poll for incoming data before continuing.
+    //
+    if (rb.self_frame > rb.read_frame + ROLLBACK_MAX_AHEAD) {
+        // Try to receive more remote inputs before giving up
+        process_incoming();
+        if (!rb.connected) {
+            pthread_mutex_unlock(&rb.mutex);
+            return 0;
+        }
+        // If still too far ahead after draining, skip this frame (stall)
+        if (rb.self_frame > rb.read_frame + ROLLBACK_MAX_AHEAD) {
+            pthread_mutex_unlock(&rb.mutex);
+            return 0;
+        }
+    }
+
+    //
     // 1. Initialize the slot for the current frame
     //
     RollbackFrameSlot* cur = get_slot(rb.self_frame);

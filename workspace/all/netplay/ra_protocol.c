@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -25,19 +26,37 @@
 //////////////////////////////////////////////////////////////////////////////
 
 // Receive exactly `size` bytes with timeout. Returns true on success.
+// The timeout covers the entire operation, not each individual recv call.
 static bool recv_exact(int fd, void* buf, size_t size, int timeout_ms) {
     uint8_t* ptr = (uint8_t*)buf;
     size_t remaining = size;
 
+    struct timeval deadline = {0, 0};
+    if (timeout_ms > 0) {
+        gettimeofday(&deadline, NULL);
+        deadline.tv_sec  += timeout_ms / 1000;
+        deadline.tv_usec += (timeout_ms % 1000) * 1000;
+        if (deadline.tv_usec >= 1000000) {
+            deadline.tv_sec++;
+            deadline.tv_usec -= 1000000;
+        }
+    }
+
     while (remaining > 0) {
         if (timeout_ms > 0) {
+            struct timeval now, tv;
+            gettimeofday(&now, NULL);
+            tv.tv_sec  = deadline.tv_sec  - now.tv_sec;
+            tv.tv_usec = deadline.tv_usec - now.tv_usec;
+            if (tv.tv_usec < 0) {
+                tv.tv_sec--;
+                tv.tv_usec += 1000000;
+            }
+            if (tv.tv_sec < 0) return false;  // Deadline passed
+
             fd_set fds;
             FD_ZERO(&fds);
             FD_SET(fd, &fds);
-            struct timeval tv = {
-                .tv_sec = timeout_ms / 1000,
-                .tv_usec = (timeout_ms % 1000) * 1000
-            };
             int sel = select(fd + 1, &fds, NULL, NULL, &tv);
             if (sel <= 0) return false;
         }

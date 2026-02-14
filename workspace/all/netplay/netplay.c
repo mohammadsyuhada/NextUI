@@ -251,6 +251,7 @@ uint32_t Netplay_getPlayerButtons(unsigned port, uint32_t local_buttons) {
 }
 
 void Netplay_setLocalInput(uint16_t input) {
+    if (facade.rollback_mode) return;  // Rollback gets input via Rollback_update()
     Lockstep_setLocalInput(input);
 }
 
