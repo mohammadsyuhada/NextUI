@@ -115,15 +115,18 @@ static bool detect_and_init_rollback(Netplay_SerializeSizeFn serialize_size_fn,
 //////////////////////////////////////////////////////////////////////////////
 
 void Netplay_init(void) {
-    memset(&facade, 0, sizeof(facade));
+    // Lockstep_init() has its own guard (ls.initialized), so it's safe
+    // to call multiple times. Don't clear facade state here - core_run_fn
+    // and core info may have been set before this is called.
     Lockstep_init();
 }
 
 void Netplay_quit(void) {
-    if (facade.rollback_mode) {
-        Rollback_quit();
-        facade.rollback_mode = false;
-    }
+    // Always call Rollback_quit() to free ring buffer, even if rollback_mode
+    // was already cleared by a prior Netplay_disconnect(). Rollback_quit()
+    // is safe to call when rollback was never initialized.
+    Rollback_quit();
+    facade.rollback_mode = false;
     Lockstep_quit();
     memset(&facade, 0, sizeof(facade));
 }
@@ -172,6 +175,7 @@ void Netplay_disconnect(void) {
 //////////////////////////////////////////////////////////////////////////////
 
 NetplayMode Netplay_getMode(void) {
+    if (facade.rollback_mode) return NETPLAY_CLIENT;  // Rollback is always client
     return Lockstep_getMode();
 }
 

@@ -164,8 +164,11 @@ static uint32_t process_incoming(void) {
         case RA_CMD_CRC: {
             // Server's CRC for a frame - we can compare with ours for desync detection
             if (hdr.size >= 8) {
-                uint32_t frame_num = ntohl(*(uint32_t*)buf);
-                uint32_t server_crc = ntohl(*(uint32_t*)(buf + 4));
+                uint32_t frame_num, server_crc;
+                memcpy(&frame_num, buf, 4);
+                memcpy(&server_crc, buf + 4, 4);
+                frame_num = ntohl(frame_num);
+                server_crc = ntohl(server_crc);
                 RollbackFrameSlot* slot = get_slot(frame_num);
                 if (slot->crc != 0 && slot->crc != server_crc) {
                     LOG_info("Rollback: DESYNC at frame %u (local=0x%08x server=0x%08x)\n",
@@ -180,8 +183,11 @@ static uint32_t process_incoming(void) {
             // Server is sending us a savestate for desync recovery
             // Payload: uint32_t frame_num + uint32_t state_size + state_data
             if (hdr.size >= 8) {
-                uint32_t frame_num = ntohl(*(uint32_t*)buf);
-                uint32_t state_size = ntohl(*(uint32_t*)(buf + 4));
+                uint32_t frame_num, state_size;
+                memcpy(&frame_num, buf, 4);
+                memcpy(&state_size, buf + 4, 4);
+                frame_num = ntohl(frame_num);
+                state_size = ntohl(state_size);
 
                 if (state_size <= rb.state_size && hdr.size >= 8 + state_size) {
                     LOG_info("Rollback: loading savestate from server for frame %u (%u bytes)\n",
@@ -277,7 +283,10 @@ int Rollback_init(int tcp_fd, uint32_t client_num, uint32_t start_frame,
     memset(&rb, 0, sizeof(rb));
     pthread_mutex_init(&rb.mutex, NULL);
 
-    rb.tcp_fd = tcp_fd;
+    // Don't set rb.tcp_fd yet - we don't own it until all allocations succeed.
+    // If Rollback_quit() is called during init failure, it would close a fd
+    // that the caller (lockstep) still owns.
+    rb.tcp_fd = -1;
     rb.client_num = client_num;
     rb.start_frame = start_frame;
     rb.self_frame = start_frame;
@@ -317,6 +326,9 @@ int Rollback_init(int tcp_fd, uint32_t client_num, uint32_t start_frame,
     for (int i = 0; i < ROLLBACK_BUFFER_SIZE; i++) {
         init_slot(i);
     }
+
+    // Now take ownership of the TCP fd (all allocations succeeded)
+    rb.tcp_fd = tcp_fd;
 
     // Save initial state
     save_state(start_frame);
