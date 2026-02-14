@@ -440,6 +440,8 @@ int Lockstep_connectToHost(const char* ip, uint16_t port) {
     setsockopt(ls.tcp_fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 
     if (connect(ls.tcp_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        LOG_info("Netplay: connect to %s:%d failed: %s (errno=%d)\n",
+                 ip, port, strerror(errno), errno);
         close(ls.tcp_fd);
         ls.tcp_fd = -1;
         ls.state = NETPLAY_STATE_ERROR;

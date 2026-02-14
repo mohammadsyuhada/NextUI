@@ -233,6 +233,12 @@ int RA_clientHandshake(RA_HandshakeCtx* ctx) {
         return -1;
     }
 
+    // Check if server requires a password (salt != 0)
+    if (ntohl(server_hdr.salt) != 0) {
+        LOG_info("RA handshake: server requires password (not supported)\n");
+        return -1;
+    }
+
     //
     // Step 3: Exchange CMD_NICK
     //
@@ -262,7 +268,25 @@ int RA_clientHandshake(RA_HandshakeCtx* ctx) {
     LOG_info("RA handshake: server nick = '%s'\n", ctx->server_nick);
 
     //
-    // Step 4: Send CMD_INFO
+    // Step 4: Receive CMD_INFO from server
+    //
+    // The RA server sends its game info (core name, CRC) after the NICK exchange.
+    // We must receive and acknowledge it before sending our own INFO.
+    //
+    RA_PacketHeader info_hdr;
+    uint8_t info_recv_buf[256];
+    if (!RA_recvCmd(fd, &info_hdr, info_recv_buf, sizeof(info_recv_buf), 10000)) {
+        LOG_info("RA handshake: failed to receive server INFO\n");
+        return -1;
+    }
+    if (info_hdr.cmd != RA_CMD_INFO) {
+        LOG_info("RA handshake: expected INFO (0x%04x), got 0x%04x\n", RA_CMD_INFO, info_hdr.cmd);
+        return -1;
+    }
+    LOG_info("RA handshake: received server INFO (%u bytes)\n", info_hdr.size);
+
+    //
+    // Step 5: Send CMD_INFO
     //
     RA_InfoPayload info;
     memset(&info, 0, sizeof(info));
@@ -276,7 +300,7 @@ int RA_clientHandshake(RA_HandshakeCtx* ctx) {
     }
 
     //
-    // Step 5: Receive CMD_SYNC
+    // Step 6: Receive CMD_SYNC
     //
     // CMD_SYNC payload is variable-length. We read it into a buffer and parse key fields.
     // Minimum fields: frame_num(4) + connections(4) + client_num(4) = 12 bytes
