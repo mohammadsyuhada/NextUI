@@ -31,6 +31,11 @@
 #include "ra_integration.h"
 #include "ra_badges.h"
 #include "rc_client.h"
+#include "minarch.h"
+#include "netplay.h"
+#include "gbalink.h"
+#include "gblink.h"
+#include "netplay_helper.h"
 #include <dirent.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL.h>
@@ -155,6 +160,10 @@ static struct Core {
 	
 	retro_core_options_update_display_callback_t update_visibility_callback;
 	// retro_audio_buffer_status_callback_t audio_buffer_status;
+
+	bool has_netpacket; // Netpacket interface (for GBA Link support)
+	bool show_netplay; // Whether to show netplay menu (false for cores that don't support it like mGBA)
+	bool has_gblink; // GB Link support (gambatte core)
 } core;
 
 int extract_zip(char** extensions);
@@ -3354,7 +3363,7 @@ static void Config_init(void) {
 	config.shaders.options[SH_SHADER3].values = filelist;
 	config.shaders.options[SH_SHADER3].labels = filelist;
 	config.shaders.options[SH_SHADER3].count = filecount;
-	
+
 	char overlaypath[MAX_PATH];
 	snprintf(overlaypath, sizeof(overlaypath), "%s/%s", OVERLAYS_FOLDER, core.tag);
 	char** overlaylist = list_files_in_folder(overlaypath, &filecount, "None", NULL);
@@ -3613,6 +3622,11 @@ static void Config_write(int override) {
 	
 	fclose(file);
 	sync();
+
+	// Reload user_cfg from disk so in-memory config matches saved file
+	// This is needed because Config_readOptions() uses the in-memory string
+	if (config.user_cfg) free(config.user_cfg);
+	config.user_cfg = allocFile(path);
 }
 static void Config_restore(void) {
 	char path[MAX_PATH];
@@ -4184,11 +4198,21 @@ static void OptionList_setOptionRawValue(OptionList* list, const char* key, int 
 	}
 	else LOG_info("unknown option %s \n", key);
 }
+
+static void core_log_callback(int level, const char* fmt, ...);
+static int option_batch_mode = 0; // Batch mode support for deferring config.core.changed flag
+static int option_batch_changed = 0; // Used by gblink.c to set multiple core options atomically
+static int skip_video_output = 0; // Flag to skip video output during forced core.run() calls (e.g., for link option processing)
+
 static void OptionList_setOptionValue(OptionList* list, const char* key, const char* value) {
 	Option* item = OptionList_getOption(list, key);
 	if (item) {
 		Option_setValue(item, value);
-		list->changed = 1;
+		if (option_batch_mode) {
+			option_batch_changed = 1;  // Defer flag until batch ends
+		} else {
+			list->changed = 1;
+		}
 		// LOG_info("\tSET %s (%s) TO %s (%s)\n", item->name, item->key, item->labels[item->value], item->values[item->value]);
 		// if (list->on_set) list->on_set(list, key);
 		
@@ -4239,13 +4263,14 @@ static void input_poll_callback(void) {
 	if (PAD_isPressed(BTN_MENU) && PAD_isPressed(BTN_SELECT)) {
 		ignore_menu = 1;
 		newScreenshot = 1;
+		Netplay_quitAll();
 		quit = 1;
 		Menu_saveState();
 		putFile(GAME_SWITCHER_PERSIST_PATH, game.path + strlen(SDCARD_PATH));
 		GFX_clear(screen);
 		
 	}
-		
+
 	if (PAD_justPressed(BTN_POWER)) {
 		
 	}
@@ -4260,6 +4285,11 @@ static void input_poll_callback(void) {
 		int btn = 1 << mapping->local;
 		if (btn==BTN_NONE) continue; // not bound
 		if (!mapping->mod || PAD_isPressed(BTN_MENU)) {
+			// Skip FF/rewind for multiplayer
+			if (i==SHORTCUT_TOGGLE_FF || i==SHORTCUT_HOLD_FF ||
+			    i==SHORTCUT_HOLD_REWIND || i==SHORTCUT_TOGGLE_REWIND) {
+				if (Multiplayer_isActive()) continue;
+			}
 			if (i==SHORTCUT_TOGGLE_FF) {
 				if (PAD_justPressed(btn)) {
 					toggled_ff_on = setFastForward(!fast_forward);
@@ -4358,11 +4388,13 @@ static void input_poll_callback(void) {
 						break;
 					case SHORTCUT_RESET_GAME: core.reset(); break;
 					case SHORTCUT_SAVE_QUIT:
+						Netplay_quitAll();
 						newScreenshot = 1;
 						quit = 1;
 						Menu_saveState();
 						break;
 					case SHORTCUT_GAMESWITCHER:
+						Netplay_quitAll();
 						newScreenshot = 1;
 						quit = 1;
 						Menu_saveState();
@@ -4420,18 +4452,24 @@ static void input_poll_callback(void) {
 	// if (buttons) LOG_info("buttons: %i\n", buttons);
 }
 static int16_t input_state_callback(unsigned port, unsigned device, unsigned index, unsigned id) {
-	if (port==0 && device==RETRO_DEVICE_JOYPAD && index==0) {
-		if (id == RETRO_DEVICE_ID_JOYPAD_MASK) return buttons;
-		return (buttons >> id) & 1;
+	uint32_t player_buttons = Netplay_getPlayerButtons(port, buttons);
+
+	// Digital joypad inputs
+	if (device == RETRO_DEVICE_JOYPAD && index == 0) {
+		if (id == RETRO_DEVICE_ID_JOYPAD_MASK) return player_buttons;
+		return (player_buttons >> id) & 1;
 	}
-	else if (port==0 && device==RETRO_DEVICE_ANALOG) {
-		if (index==RETRO_DEVICE_INDEX_ANALOG_LEFT) {
-			if (id==RETRO_DEVICE_ID_ANALOG_X) return pad.laxis.x;
-			else if (id==RETRO_DEVICE_ID_ANALOG_Y) return pad.laxis.y;
-		}
-		else if (index==RETRO_DEVICE_INDEX_ANALOG_RIGHT) {
-			if (id==RETRO_DEVICE_ID_ANALOG_X) return pad.raxis.x;
-			else if (id==RETRO_DEVICE_ID_ANALOG_Y) return pad.raxis.y;
+	// Analog inputs (local only - no netplay analog support)
+	else if (port == 0 && device == RETRO_DEVICE_ANALOG) {
+		if (!Netplay_isActive() || Netplay_getMode() == NETPLAY_HOST) {
+			if (index == RETRO_DEVICE_INDEX_ANALOG_LEFT) {
+				if (id == RETRO_DEVICE_ID_ANALOG_X) return pad.laxis.x;
+				else if (id == RETRO_DEVICE_ID_ANALOG_Y) return pad.laxis.y;
+			}
+			else if (index == RETRO_DEVICE_INDEX_ANALOG_RIGHT) {
+				if (id == RETRO_DEVICE_ID_ANALOG_X) return pad.raxis.x;
+				else if (id == RETRO_DEVICE_ID_ANALOG_Y) return pad.raxis.y;
+			}
 		}
 	}
 	return 0;
@@ -4634,7 +4672,7 @@ static bool environment_callback(unsigned cmd, void *data) { // copied from pico
 	case RETRO_ENVIRONMENT_GET_LOG_INTERFACE: { /* 27 */
 		struct retro_log_callback *log_cb = (struct retro_log_callback *)data;
 		if (log_cb)
-			log_cb->log = (void (*)(enum retro_log_level, const char*, ...))LOG_note; // same difference
+			log_cb->log = (void (*)(enum retro_log_level, const char*, ...))core_log_callback;
 		break;
 	}
 	case RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY: { /* 31 */
@@ -4859,6 +4897,15 @@ static bool environment_callback(unsigned cmd, void *data) { // copied from pico
 			cb->version_minor = 0;
 		}
 
+		return true;
+	}
+	case RETRO_ENVIRONMENT_SET_NETPACKET_INTERFACE: {
+		const struct retro_netpacket_callback *cb =
+			(const struct retro_netpacket_callback *)data;
+		if (cb) {
+			core.has_netpacket = true;
+			GBALink_setCoreCallbacks(cb);
+		}
 		return true;
 	}
 	default:
@@ -5917,6 +5964,10 @@ static void video_refresh_callback(const void* data, unsigned width, unsigned he
 	// Early exit if quitting to avoid rendering stale frames
 	if (quit) return;
 
+	// Skip video output during forced core.run() calls (e.g., for link option processing)
+	// This prevents game frames from overwriting UI screens during option updates
+	if (skip_video_output) return;
+
 	// Allocate RGBA buffer if needed
 	if (!rgbaData || rgbaDataSize != width * height) {
 		if (rgbaData) free(rgbaData);
@@ -5957,6 +6008,7 @@ static void video_refresh_callback(const void* data, unsigned width, unsigned he
 
 static void audio_sample_callback(int16_t left, int16_t right) {
 	if (rewinding && !rewind_ctx.audio) return;
+	if (Netplay_shouldSilenceAudio()) return;
 	if (!fast_forward || ff_audio) {
 		if (use_core_fps || fast_forward) {
 			SND_batchSamples_fixed_rate(&(const SND_Frame){left,right}, 1);
@@ -5968,6 +6020,7 @@ static void audio_sample_callback(int16_t left, int16_t right) {
 }
 static size_t audio_sample_batch_callback(const int16_t *data, size_t frames) { 
 	if (rewinding && !rewind_ctx.audio) return frames;
+	if (Netplay_shouldSilenceAudio()) return frames;
 	if (!fast_forward || ff_audio) {
 		if (use_core_fps || fast_forward) {
 			return SND_batchSamples_fixed_rate((const SND_Frame*)data, frames);
@@ -6100,12 +6153,22 @@ int Core_updateAVInfo(void) {
 
 void Core_load(void) {
 	LOG_info("Core_load\n");
+
+	core.has_netpacket = false;
+	core.has_gblink = false;
+	core.show_netplay = false;
+
 	struct retro_game_info game_info;
 	game_info.path = game.tmp_path[0]?game.tmp_path:game.path;
 	game_info.data = game.data;
 	game_info.size = game.size;
 	LOG_info("game path: %s (%i)\n", game_info.path, game.size);
 	core.load_game(&game_info);
+
+	CoreLinkSupport link_support = checkCoreLinkSupport(core.name);
+	core.show_netplay = link_support.show_netplay;
+	core.has_netpacket = link_support.has_netpacket;
+	core.has_gblink = link_support.has_gblink;
 
 	if (Cheats_load())
 		Core_applyCheats(&cheatcodes);
@@ -6142,7 +6205,7 @@ void Core_close(void) {
 
 ///////////////////////////////////////
 
-#define MENU_ITEM_COUNT 5
+#define MENU_ITEM_COUNT 6
 #define MENU_SLOT_COUNT 8
 
 enum {
@@ -6150,6 +6213,7 @@ enum {
 	ITEM_SAVE,
 	ITEM_LOAD,
 	ITEM_OPTS,
+	ITEM_NETPLAY,
 	ITEM_QUIT,
 };
 
@@ -6164,7 +6228,7 @@ enum {
 };
 
 // TODO: I don't love how overloaded this has become
-static struct {
+struct {
 	SDL_Surface* bitmap;
 	SDL_Surface* overlay;
 	char* items[MENU_ITEM_COUNT];
@@ -6191,6 +6255,7 @@ static struct {
 		[ITEM_SAVE] = "Save",
 		[ITEM_LOAD] = "Load",
 		[ITEM_OPTS] = "Options",
+		[ITEM_NETPLAY] = "Netplay",
 		[ITEM_QUIT] = "Quit",
 	}
 };
@@ -6265,11 +6330,7 @@ void Menu_afterSleep() {
 
 typedef struct MenuList MenuList;
 typedef struct MenuItem MenuItem;
-enum {
-	MENU_CALLBACK_NOP,
-	MENU_CALLBACK_EXIT,
-	MENU_CALLBACK_NEXT_ITEM,
-};
+// MENU_CALLBACK_* enum now defined in minarch.h
 typedef int (*MenuList_callback_t)(MenuList* list, int i);
 typedef struct MenuItem {
 	char* name;
@@ -6770,7 +6831,7 @@ static int OptionQuicksave_onConfirm(MenuList* list, int i) {
 static int OptionCheats_optionChanged(MenuList* list, int i) {
 	MenuItem* item = &list->items[i];
 	struct Cheat *cheat = &cheatcodes.cheats[i];
-	
+
 	// Block enabling cheats in RetroAchievements hardcore mode
 	if (RA_isHardcoreModeActive() && item->value) {
 		LOG_info("Cheat enable blocked - hardcore mode active\n");
@@ -6778,7 +6839,7 @@ static int OptionCheats_optionChanged(MenuList* list, int i) {
 		item->value = 0; // Revert the toggle
 		return MENU_CALLBACK_NOP;
 	}
-	
+
 	cheat->enabled = item->value;
 	Core_applyCheats(&cheatcodes);
 	return MENU_CALLBACK_NOP;
@@ -7738,7 +7799,7 @@ static int Menu_options(MenuList* list) {
 	int show_options = 1;
 	int show_settings = 0;
 	int await_input = 0;
-	
+	int should_exit = 0;
 	// dependent on option list offset top and bottom, eg. the gray triangles
 	int max_visible_options = (screen->h - ((SCALE1(PADDING + PILL_SIZE) * 2) + SCALE1(BUTTON_SIZE))) / SCALE1(BUTTON_SIZE); // 7 for 480, 10 for 720
 	
@@ -7848,7 +7909,10 @@ static int Menu_options(MenuList* list) {
 				if (item->values==button_labels) await_input = 1; // button binding
 				else result = list->on_confirm(list, selected); // list-specific action, eg. show item detail view or input binding
 			}
-			if (result==MENU_CALLBACK_EXIT) show_options = 0;
+			if (result==MENU_CALLBACK_EXIT) {
+				show_options = 0;
+				should_exit = 1;  // Propagate exit to caller
+			}
 			else {
 				if (result==MENU_CALLBACK_NEXT_ITEM) {
 					// copied from PAD_justRepeated(BTN_DOWN) above
@@ -8138,7 +8202,7 @@ static int Menu_options(MenuList* list) {
 	// GFX_clearAll();
 	// GFX_flip(screen);
 	
-	return 0;
+	return should_exit ? MENU_CALLBACK_EXIT : 0;
 }
 
 static void Menu_scale(SDL_Surface* src, SDL_Surface* dst) {
@@ -8371,6 +8435,9 @@ static void Menu_screenshot(void) {
 	}
 }
 static void Menu_saveState(void) {
+	// Block save states during multiplayer - causes connection breaks
+	if (Multiplayer_isActive()) { return;}
+
 	// LOG_info("Menu_saveState\n");
 	Menu_updateState();
 	
@@ -8410,6 +8477,9 @@ static void Menu_saveState(void) {
 	}
 }
 static void Menu_loadState(void) {
+	// Block load states during multiplayer - causes connection breaks
+	if (Multiplayer_isActive()) { return; }
+
 	Menu_updateState();
 
 	if (menu.save_exists) {
@@ -8518,15 +8588,25 @@ static void Menu_loop(void) {
 		uint32_t now = SDL_GetTicks();
 
 		PAD_poll();
-		
+
+		if (Netplay_isConnected()) {
+			Netplay_pollWhilePaused();
+		}
+		int mp_active = Multiplayer_isActive();
 		if (PAD_justPressed(BTN_UP)) {
-			selected -= 1;
-			if (selected<0) selected += MENU_ITEM_COUNT;
+			do {
+				selected -= 1;
+				if (selected<0) selected += MENU_ITEM_COUNT;
+			} while ((!core.show_netplay && selected == ITEM_NETPLAY) ||
+			         (mp_active && (selected == ITEM_SAVE || selected == ITEM_LOAD)));
 			dirty = 1;
 		}
 		else if (PAD_justPressed(BTN_DOWN)) {
-			selected += 1;
-			if (selected>=MENU_ITEM_COUNT) selected -= MENU_ITEM_COUNT;
+			do {
+				selected += 1;
+				if (selected>=MENU_ITEM_COUNT) selected -= MENU_ITEM_COUNT;
+			} while ((!core.show_netplay && selected == ITEM_NETPLAY) ||
+			         (mp_active && (selected == ITEM_SAVE || selected == ITEM_LOAD)));
 			dirty = 1;
 		}
 		else if (PAD_justPressed(BTN_LEFT)) {
@@ -8599,7 +8679,7 @@ static void Menu_loop(void) {
 					else {
 						int old_scaling = screen_scaling;
 						Options_updateVisibility();
-						Menu_options(&options_menu);
+						int menu_result = Menu_options(&options_menu);
 						if (screen_scaling!=old_scaling) {
 							selectScaler(renderer.true_w,renderer.true_h,renderer.src_p);
 						
@@ -8610,11 +8690,28 @@ static void Menu_loop(void) {
 							SDL_Rect dst = {0, 0, DEVICE_WIDTH, DEVICE_HEIGHT};
 							SDL_BlitScaled(menu.bitmap,NULL,backing,&dst);
 						}
+						if (menu_result == MENU_CALLBACK_EXIT && netplay_force_resume) {
+							netplay_force_resume = 0;
+							status = STATUS_CONT;
+							show_menu = 0;
+						}
 						dirty = 1;
 					}
 				}
 				break;
+				case ITEM_NETPLAY:
+					{
+					LinkType link_type = core.has_netpacket ? LINK_TYPE_GBALINK :
+					                     core.has_gblink ? LINK_TYPE_GBLINK : LINK_TYPE_NETPLAY;
+					if (Netplay_menu_link(link_type)) {
+						status = STATUS_CONT;
+						show_menu = 0;
+					}
+					dirty = 1;
+				}
+				break;
 				case ITEM_QUIT:
+					Netplay_quitAll();
 					status = STATUS_QUIT;
 					show_menu = 0;
 					quit = 1; // TODO: tmp?
@@ -8662,8 +8759,19 @@ static void Menu_loop(void) {
 			GFX_blitButtonGroup((char*[]){ "B","BACK", "A","OKAY", NULL }, 1, screen, 1);
 			
 			// list
-			oy = (((DEVICE_HEIGHT / FIXED_SCALE) - PADDING * 2) - (MENU_ITEM_COUNT * PILL_SIZE)) / 2;
+			// Hide Save/Load during multiplayer to prevent connection breaks
+			int multiplayer_active = Multiplayer_isActive();
+			int visible_item_count = MENU_ITEM_COUNT;
+			if (!core.show_netplay) visible_item_count--;
+			if (multiplayer_active) visible_item_count -= 2;
+			oy = (((DEVICE_HEIGHT / FIXED_SCALE) - PADDING * 2) - (visible_item_count * PILL_SIZE)) / 2;
+			int render_idx = 0;  // Track position for rendering (skips hidden items)
 			for (int i=0; i<MENU_ITEM_COUNT; i++) {
+				// Skip ITEM_NETPLAY if core doesn't support netplay (e.g., mGBA)
+				if (i == ITEM_NETPLAY && !core.show_netplay) continue;
+				// Skip Save/Load during multiplayer
+				if ((i == ITEM_SAVE || i == ITEM_LOAD) && multiplayer_active) continue;
+
 				char* item = menu.items[i];
 				SDL_Color text_color = COLOR_WHITE;
 				
@@ -8692,7 +8800,7 @@ static void Menu_loop(void) {
 					// pill
 					GFX_blitPillDark(ASSET_WHITE_PILL, screen, &(SDL_Rect){
 						SCALE1(PADDING),
-						SCALE1(oy + PADDING + (i * PILL_SIZE)),
+						SCALE1(oy + PADDING + (render_idx * PILL_SIZE)),
 						ow,
 						SCALE1(PILL_SIZE)
 					});
@@ -8703,9 +8811,10 @@ static void Menu_loop(void) {
 				text = TTF_RenderUTF8_Blended(font.large, item, text_color);
 				SDL_BlitSurface(text, NULL, screen, &(SDL_Rect){
 					SCALE1(PADDING + BUTTON_PADDING),
-					SCALE1(oy + PADDING + (i * PILL_SIZE) + 4)
+					SCALE1(oy + PADDING + (render_idx * PILL_SIZE) + 4)
 				});
 				SDL_FreeSurface(text);
+				render_idx++;
 			}
 			
 			// slot preview
@@ -9016,7 +9125,7 @@ int main(int argc , char* argv[]) {
 	// ah, because it's defined before options_menu...
 	options_menu.items[1].desc = (char*)core.version;
 	Core_load();
-	
+
 	Input_init(NULL);
 	Config_readOptions(); // but others load and report options later (eg. nes)
 	Config_readControls(); // restore controls (after the core has reported its defaults)
@@ -9072,50 +9181,66 @@ int main(int argc , char* argv[]) {
 	while (!quit) {
 		GFX_startFrame();
 
-		Rewind_run_frame();
+		// Netplay: synchronize inputs BEFORE running the core
+		if (!Netplay_update((uint16_t)buttons, core.serialize_size, core.serialize, core.unserialize)) {
+			input_poll_callback();
+			continue;
+		}
+
+		GBALink_update();
+		GBALink_pollAndDeliverPackets();
+
+		if (Multiplayer_isActive()) {
+			core.run();
+		} else {
+			Rewind_run_frame();
+
+			// Process RetroAchievements for this frame
+			RA_doFrame();
+
+			// Update and render notifications overlay
+			Notification_update(SDL_GetTicks());
 		
-		// Process RetroAchievements for this frame
-		RA_doFrame();
-		
-		// Update and render notifications overlay
-		Notification_update(SDL_GetTicks());
-		
-		// Poll for volume/brightness/colortemp changes and show system indicators
-		{
-			static int last_volume = -1;
-			static int last_brightness = -1;
-			static int last_colortemp = -1;
-			
-			int cur_volume = GetVolume();
-			int cur_brightness = GetBrightness();
-			int cur_colortemp = GetColortemp();
-			
-			if (last_volume == -1) {
-				// First frame - just initialize cached values, don't show indicator
-				last_volume = cur_volume;
-				last_brightness = cur_brightness;
-				last_colortemp = cur_colortemp;
-			} else {
-				// Check for changes
-				if (cur_volume != last_volume) {
+			// Poll for volume/brightness/colortemp changes and show system indicators
+			{
+				static int last_volume = -1;
+				static int last_brightness = -1;
+				static int last_colortemp = -1;
+				
+				int cur_volume = GetVolume();
+				int cur_brightness = GetBrightness();
+				int cur_colortemp = GetColortemp();
+				
+				if (last_volume == -1) {
+					// First frame - just initialize cached values, don't show indicator
 					last_volume = cur_volume;
-					if (CFG_getNotifyAdjustments())
-						Notification_showSystemIndicator(SYSTEM_INDICATOR_VOLUME);
-				}
-				if (cur_brightness != last_brightness) {
 					last_brightness = cur_brightness;
-					if (CFG_getNotifyAdjustments())
-						Notification_showSystemIndicator(SYSTEM_INDICATOR_BRIGHTNESS);
-				}
-				if (cur_colortemp != last_colortemp) {
 					last_colortemp = cur_colortemp;
-					if (CFG_getNotifyAdjustments())
-						Notification_showSystemIndicator(SYSTEM_INDICATOR_COLORTEMP);
+				} else {
+					// Check for changes
+					if (cur_volume != last_volume) {
+						last_volume = cur_volume;
+						if (CFG_getNotifyAdjustments())
+							Notification_showSystemIndicator(SYSTEM_INDICATOR_VOLUME);
+					}
+					if (cur_brightness != last_brightness) {
+						last_brightness = cur_brightness;
+						if (CFG_getNotifyAdjustments())
+							Notification_showSystemIndicator(SYSTEM_INDICATOR_BRIGHTNESS);
+					}
+					if (cur_colortemp != last_colortemp) {
+						last_colortemp = cur_colortemp;
+						if (CFG_getNotifyAdjustments())
+							Notification_showSystemIndicator(SYSTEM_INDICATOR_COLORTEMP);
+					}
 				}
 			}
+			
+			Notification_renderToLayer(5); 
 		}
-		
-		Notification_renderToLayer(5);  // Always call - handles cleanup when inactive
+		if (Netplay_isActive()) {
+			Netplay_postFrame();
+		}
 
 		if (has_pending_opt_change) {
 			has_pending_opt_change = 0;
@@ -9127,13 +9252,29 @@ int main(int argc , char* argv[]) {
 		}
 
 		if (show_menu) {
+			if (Netplay_isConnected()) {
+				Netplay_pause();
+			}
 			PWR_updateFrequency(PWR_UPDATE_FREQ,1);
 			Menu_loop();
 			// Process RA async operations while menu is shown
 			RA_idle();
+			if (Netplay_isPaused()) {
+				Netplay_resume();
+			}
 			PWR_updateFrequency(PWR_UPDATE_FREQ_INGAME,0);
 			has_pending_opt_change = config.core.changed;
 			chooseSyncRef();
+
+			// Clear FF/rewind state if multiplayer is now active
+			if (Multiplayer_isActive()) {
+				fast_forward = setFastForward(0);
+				ff_toggled = 0;
+				ff_hold_active = 0;
+				rewind_toggle = 0;
+				rewind_pressed = 0;
+				rewinding = 0;
+			}
 		}
 
 		if (resetAudio) {
@@ -9168,6 +9309,8 @@ int main(int argc , char* argv[]) {
 
 finish:
 
+	Netplay_quitAll();
+
 	// Unload game and shutdown RetroAchievements before Core_quit
 	RA_unloadGame();
 	RA_quit();
@@ -9191,4 +9334,101 @@ finish:
 	GFX_quit();
 	SDL_WaitThread(screenshotsavethread, NULL);
 	return EXIT_SUCCESS;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Accessor functions for external modules
+//////////////////////////////////////////////////////////////////////////////
+
+// Screen/display accessors
+SDL_Surface* minarch_getScreen(void) { return screen; }
+int minarch_getDeviceWidth(void) { return DEVICE_WIDTH; }
+int minarch_getDeviceHeight(void) { return DEVICE_HEIGHT; }
+SDL_Surface* minarch_getMenuBitmap(void) { return menu.bitmap; }
+
+// Game state accessors
+const char* minarch_getCoreTag(void) { return core.tag; }
+const char* minarch_getGameName(void) { return game.name; }
+void* minarch_getGameData(void) { return game.data; }
+size_t minarch_getGameSize(void) { return game.size; }
+
+// Core option accessors
+char* minarch_getCoreOptionValue(const char* key) {
+	return OptionList_getOptionValue(&config.core, key);
+}
+void minarch_setCoreOptionValue(const char* key, const char* value) {
+	OptionList_setOptionValue(&config.core, key, value);
+}
+
+// Sleep state accessors
+void minarch_beforeSleep(void) { Menu_beforeSleep(); }
+void minarch_afterSleep(void) { Menu_afterSleep(); }
+
+// Platform accessors
+void minarch_hdmimon(void) { hdmimon(); }
+
+// Menu accessors
+int minarch_menuMessage(char* message, char** pairs) { return Menu_message(message, pairs); }
+
+// Save current config to file (used before core reset to preserve option changes)
+void minarch_saveConfig(void) { Config_write(CONFIG_WRITE_ALL); }
+
+//////////////////////////////////////////////////////////////////////////////
+// Utility/API functions for external modules
+//////////////////////////////////////////////////////////////////////////////
+
+void minarch_beginOptionsBatch(void) {
+	option_batch_mode = 1;
+	option_batch_changed = 0;
+}
+void minarch_endOptionsBatch(void) {
+	option_batch_mode = 0;
+	if (option_batch_changed) {
+		config.core.changed = 1;
+		option_batch_changed = 0;
+	}
+}
+
+// Force core to process option changes immediately (used by gblink.c and netplay_helper.c)
+// Runs one frame with video output suppressed to trigger check_variables()
+void minarch_forceCoreOptionUpdate(void) {
+	skip_video_output = 1;
+	core.run();
+	skip_video_output = 0;
+}
+
+
+// Reload the game to reinitialize core state (e.g., for gpSP serial mode changes)
+// Unloads and reloads the ROM so the core re-reads options during load_game()
+void minarch_reloadGame(void) {
+	SRAM_write();
+	core.unload_game();
+
+	struct retro_game_info game_info;
+	game_info.path = game.tmp_path[0] ? game.tmp_path : game.path;
+	game_info.data = game.data;
+	game_info.size = game.size;
+	core.load_game(&game_info);
+
+	SRAM_read();
+	Core_updateAVInfo();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Core callbacks
+//////////////////////////////////////////////////////////////////////////////
+
+// Wrapper for libretro log callback to intercept core messages
+static void core_log_callback(int level, const char* fmt, ...) {
+	char buffer[512];
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buffer, sizeof(buffer), fmt, args);
+	va_end(args);
+
+	// Forward to normal log
+	LOG_note(level, "%s", buffer);
+
+	// Let GBLink process the message for connection state tracking
+	GBLink_processLogMessage(buffer);
 }
