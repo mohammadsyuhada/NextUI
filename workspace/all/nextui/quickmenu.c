@@ -5,6 +5,7 @@
 #include "imgloader.h"
 #include "launcher.h"
 #include "types.h"
+#include "ui_components.h"
 #include <msettings.h>
 
 static Array* quick;		// EntryArray
@@ -214,14 +215,8 @@ void QuickMenu_render(int lastScreen, int show_setting, int ow,
 					 SDCARD_PATH "/.system/res/%s@%ix.png", item->name,
 					 FIXED_SCALE);
 			SDL_Surface* bmp = IMG_Load(icon_path);
-			if (bmp) {
-				SDL_Surface* converted =
-					SDL_ConvertSurfaceFormat(bmp, screen->format->format, 0);
-				if (converted) {
-					SDL_FreeSurface(bmp);
-					bmp = converted;
-				}
-			}
+			if (bmp)
+				bmp = UI_convertSurface(bmp, screen);
 			if (bmp) {
 				int x = (item_rect.w - bmp->w) / 2;
 				int y =

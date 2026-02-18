@@ -4,6 +4,7 @@
 #include "imgloader.h"
 #include "launcher.h"
 #include "recents.h"
+#include "ui_components.h"
 #include "utils.h"
 
 #include <unistd.h>
@@ -147,14 +148,8 @@ void GameSwitcher_render(int lastScreen, SDL_Surface* blackBG,
 			// lotta memory churn here
 
 			SDL_Surface* bmp = IMG_Load(resume.preview_path);
-			if (bmp) {
-				SDL_Surface* raw_preview =
-					SDL_ConvertSurfaceFormat(bmp, screen->format->format, 0);
-				if (raw_preview) {
-					SDL_FreeSurface(bmp);
-					bmp = raw_preview;
-				}
-			}
+			if (bmp)
+				bmp = UI_convertSurface(bmp, screen);
 			if (bmp) {
 				int aw = screen->w;
 				int ah = screen->h;
@@ -221,27 +216,16 @@ void GameSwitcher_render(int lastScreen, SDL_Surface* blackBG,
 		} else if (resume.has_boxart) {
 			// Load and display boxart as fallback
 			SDL_Surface* boxart = IMG_Load(resume.boxart_path);
+			if (boxart)
+				boxart = UI_convertSurface(boxart, screen);
 			if (boxart) {
-				SDL_Surface* converted =
-					SDL_ConvertSurfaceFormat(boxart, screen->format->format, 0);
-				if (converted) {
-					SDL_FreeSurface(boxart);
-					boxart = converted;
-				}
-
 				// Apply game art settings (sizing)
 				int img_w = boxart->w;
 				int img_h = boxart->h;
-				double aspect_ratio = (double)img_h / img_w;
 				int max_w = (int)(screen->w * CFG_getGameArtWidth());
 				int max_h = (int)(screen->h * 0.6);
-				int new_w = max_w;
-				int new_h = (int)(new_w * aspect_ratio);
-
-				if (new_h > max_h) {
-					new_h = max_h;
-					new_w = (int)(new_h / aspect_ratio);
-				}
+				int new_w, new_h;
+				UI_calcImageFit(img_w, img_h, max_w, max_h, &new_w, &new_h);
 
 				// Apply rounded corners
 				GFX_ApplyRoundedCorners_8888(
@@ -330,13 +314,12 @@ void GameSwitcher_render(int lastScreen, SDL_Surface* blackBG,
 				}
 				SDL_FreeSurface(tmpsur);
 			}
-			GFX_blitMessage(font.large, "No Preview", screen, &preview_rect);
+			UI_renderCenteredMessage(screen, "No Preview");
 		}
 		Entry_free(selectedEntry);
 	} else {
-		SDL_Rect preview_rect = {0, 0, screen->w, screen->h};
-		SDL_FillRect(screen, &preview_rect, 0);
-		GFX_blitMessage(font.large, "No Recents", screen, &preview_rect);
+		SDL_FillRect(screen, &(SDL_Rect){0, 0, screen->w, screen->h}, 0);
+		UI_renderCenteredMessage(screen, "No Recents");
 		GFX_blitButtonGroup((char*[]){"B", "BACK", NULL}, 1, screen, 1);
 	}
 

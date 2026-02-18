@@ -2,6 +2,7 @@
 #include "config.h"
 #include "defines.h"
 #include "shortcuts.h"
+#include "ui_components.h"
 #include "utils.h"
 #include <assert.h>
 #include <ctype.h>
@@ -172,18 +173,6 @@ static void resolveAndLoadBackground(Entry* entry, const char* rompath,
 		onBackgroundLoaded(NULL);
 		*list_show_entry_names = true;
 	}
-}
-
-static void renderConfirmationDialog(void) {
-	char message[256];
-	char* fmt =
-		confirm_shortcut_action == 1 ? "Pin \"%s\"?" : "Unpin \"%s\"?";
-	snprintf(message, sizeof(message), fmt, confirm_shortcut_entry->name);
-	SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0, 0, 0));
-	GFX_blitMessage(font.large, message, screen,
-					&(SDL_Rect){0, 0, screen->w, screen->h});
-	GFX_blitButtonGroup((char*[]){"B", "CANCEL", "A", "CONFIRM", NULL},
-						0, screen, 1);
 }
 
 static int GameList_handleInput(unsigned long now, int currentScreen,
@@ -759,7 +748,9 @@ int main(int argc, char* argv[]) {
 
 				// Render confirmation dialog for shortcuts
 				if (confirm_shortcut_action > 0 && confirm_shortcut_entry) {
-					renderConfirmationDialog();
+					char* title =
+		confirm_shortcut_action == 1 ? "Pin shortcut?" : "Unpin shortcut?";
+	UI_renderConfirmDialog(screen, title, confirm_shortcut_entry->name);
 				}
 
 				lastScreen = SCREEN_GAMELIST;
