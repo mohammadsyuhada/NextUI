@@ -8,8 +8,8 @@
 // Internal types
 
 typedef struct Shortcut {
-	char* path;  // without SDCARD_PATH prefix
-	char* name;  // display name
+	char* path; // without SDCARD_PATH prefix
+	char* name; // display name
 } Shortcut;
 
 ///////////////////////////////////////
@@ -24,14 +24,16 @@ static Shortcut* Shortcut_new(char* path, char* name) {
 
 static void Shortcut_free(Shortcut* self) {
 	free(self->path);
-	if (self->name) free(self->name);
+	if (self->name)
+		free(self->name);
 	free(self);
 }
 
 static int ShortcutArray_indexOf(Array* self, char* path) {
 	for (int i = 0; i < self->count; i++) {
 		Shortcut* shortcut = self->items[i];
-		if (exactMatch(shortcut->path, path)) return i;
+		if (exactMatch(shortcut->path, path))
+			return i;
 	}
 	return -1;
 }
@@ -93,7 +95,8 @@ static int loadShortcuts(void) {
 		while (fgets(line, 256, file) != NULL) {
 			normalizeNewline(line);
 			trimTrailingNewlines(line);
-			if (strlen(line) == 0) continue;
+			if (strlen(line) == 0)
+				continue;
 
 			char* path = line;
 			char* name = NULL;
@@ -120,7 +123,8 @@ static int loadShortcuts(void) {
 	ShortcutArray_sort(shortcuts);
 
 	// Auto-clean: re-save if any were removed
-	if (removed_any) saveShortcuts();
+	if (removed_any)
+		saveShortcuts();
 
 	return shortcuts->count > 0;
 }
@@ -141,15 +145,18 @@ void Shortcuts_quit(void) {
 }
 
 int Shortcuts_exists(char* path) {
-	if (!shortcuts) return 0;
+	if (!shortcuts)
+		return 0;
 	return ShortcutArray_indexOf(shortcuts, path) != -1;
 }
 
 void Shortcuts_add(Entry* entry) {
-	if (!shortcuts || !entry) return;
+	if (!shortcuts || !entry)
+		return;
 
 	char* path = entry->path + strlen(SDCARD_PATH);
-	if (Shortcuts_exists(path)) return;
+	if (Shortcuts_exists(path))
+		return;
 
 	while (shortcuts->count >= MAX_SHORTCUTS) {
 		Shortcut_free(Array_pop(shortcuts));
@@ -160,7 +167,8 @@ void Shortcuts_add(Entry* entry) {
 }
 
 void Shortcuts_remove(Entry* entry) {
-	if (!shortcuts || !entry) return;
+	if (!shortcuts || !entry)
+		return;
 
 	char* path = entry->path + strlen(SDCARD_PATH);
 	int idx = ShortcutArray_indexOf(shortcuts, path);
@@ -183,7 +191,8 @@ int Shortcuts_isInConsoleDir(char* path) {
 	strncpy(parent_dir, path, sizeof(parent_dir) - 1);
 	parent_dir[sizeof(parent_dir) - 1] = '\0';
 	char* last_slash = strrchr(parent_dir, '/');
-	if (last_slash) *last_slash = '\0';
+	if (last_slash)
+		*last_slash = '\0';
 	return exactMatch(parent_dir, ROMS_PATH);
 }
 
@@ -192,19 +201,22 @@ int Shortcuts_getCount(void) {
 }
 
 char* Shortcuts_getPath(int index) {
-	if (!shortcuts || index < 0 || index >= shortcuts->count) return NULL;
+	if (!shortcuts || index < 0 || index >= shortcuts->count)
+		return NULL;
 	Shortcut* shortcut = shortcuts->items[index];
 	return shortcut->path;
 }
 
 char* Shortcuts_getName(int index) {
-	if (!shortcuts || index < 0 || index >= shortcuts->count) return NULL;
+	if (!shortcuts || index < 0 || index >= shortcuts->count)
+		return NULL;
 	Shortcut* shortcut = shortcuts->items[index];
 	return shortcut->name;
 }
 
 int Shortcuts_validate(void) {
-	if (!shortcuts) return 0;
+	if (!shortcuts)
+		return 0;
 
 	int needs_save = 0;
 	for (int i = shortcuts->count - 1; i >= 0; i--) {
@@ -219,7 +231,8 @@ int Shortcuts_validate(void) {
 		}
 	}
 
-	if (needs_save) saveShortcuts();
+	if (needs_save)
+		saveShortcuts();
 	return needs_save;
 }
 
@@ -234,7 +247,8 @@ char* Shortcuts_getPakBasename(const char* path) {
 	strncpy(basename, pakname, sizeof(basename) - 1);
 	basename[sizeof(basename) - 1] = '\0';
 	char* dot = strrchr(basename, '.');
-	if (dot) *dot = '\0';
+	if (dot)
+		*dot = '\0';
 
 	return basename;
 }

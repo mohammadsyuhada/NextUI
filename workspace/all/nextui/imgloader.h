@@ -26,11 +26,11 @@ typedef struct finishedTask {
 	int frames;
 	int done;
 	void* userData;
-	char *entry_name;
+	char* entry_name;
 	SDL_Rect dst;
 } finishedTask;
 
-typedef void (*AnimTaskCallback)(finishedTask *task);
+typedef void (*AnimTaskCallback)(finishedTask* task);
 typedef struct AnimTask {
 	int startX;
 	int targetX;
@@ -42,7 +42,7 @@ typedef struct AnimTask {
 	int frames;
 	AnimTaskCallback callback;
 	void* userData;
-	char *entry_name;
+	char* entry_name;
 	SDL_Rect dst;
 } AnimTask;
 
@@ -96,6 +96,6 @@ void onThumbLoaded(SDL_Surface* surface);
 
 // Pill animation
 void updatePillTextSurface(const char* entry_name, int move_w, SDL_Color text_color);
-void animPill(AnimTask *task);
+void animPill(AnimTask* task);
 
 #endif // IMGLOADER_H

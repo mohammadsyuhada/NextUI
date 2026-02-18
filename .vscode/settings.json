@@ -1,7 +1,8 @@
 {
-  // keep the default formatting for now, 
-  // in case we want to merge in MinUI patches down the line.
-  "editor.formatOnSave": false,
+  "editor.formatOnSave": true,
+  "[c]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+  },
   "files.associations": {
     "*.tf": "terraform",
     "pthread.h": "c",

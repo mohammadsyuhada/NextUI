@@ -28,7 +28,7 @@ typedef void (*CleanupPoolFunc)(void);
 void Launcher_setCleanupFunc(CleanupPoolFunc func);
 
 // String utilities
-int replaceString(char *line, const char *search, const char *replace);
+int replaceString(char* line, const char* search, const char* replace);
 char* escapeSingleQuotes(char* str);
 
 // Navigation

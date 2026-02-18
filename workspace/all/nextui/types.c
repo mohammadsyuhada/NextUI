@@ -11,40 +11,43 @@ Array* Array_new(void) {
 	return self;
 }
 void Array_push(Array* self, void* item) {
-	if (self->count>=self->capacity) {
+	if (self->count >= self->capacity) {
 		self->capacity *= 2;
 		self->items = realloc(self->items, sizeof(void*) * self->capacity);
 	}
 	self->items[self->count++] = item;
 }
 void Array_unshift(Array* self, void* item) {
-	if (self->count==0) return Array_push(self, item);
+	if (self->count == 0)
+		return Array_push(self, item);
 	Array_push(self, NULL); // ensures we have enough capacity
-	for (int i=self->count-2; i>=0; i--) {
-		self->items[i+1] = self->items[i];
+	for (int i = self->count - 2; i >= 0; i--) {
+		self->items[i + 1] = self->items[i];
 	}
 	self->items[0] = item;
 }
 void* Array_pop(Array* self) {
-	if (self->count==0) return NULL;
+	if (self->count == 0)
+		return NULL;
 	return self->items[--self->count];
 }
 void Array_remove(Array* self, void* item) {
-	if (self->count==0 || item == NULL)
+	if (self->count == 0 || item == NULL)
 		return;
 	int i = 0;
-	while (self->items[i] != item) i++;
-	for (int j = i; j < self->count-1; j++)
-		self->items[j] = self->items[j+1];
+	while (self->items[i] != item)
+		i++;
+	for (int j = i; j < self->count - 1; j++)
+		self->items[j] = self->items[j + 1];
 	self->count--;
 }
 void Array_reverse(Array* self) {
-	int end = self->count-1;
-	int mid = self->count/2;
-	for (int i=0; i<mid; i++) {
+	int end = self->count - 1;
+	int mid = self->count / 2;
+	for (int i = 0; i < mid; i++) {
 		void* item = self->items[i];
-		self->items[i] = self->items[end-i];
-		self->items[end-i] = item;
+		self->items[i] = self->items[end - i];
+		self->items[end - i] = item;
 	}
 }
 void Array_free(Array* self) {
@@ -54,18 +57,19 @@ void Array_free(Array* self) {
 void Array_yoink(Array* self, Array* other) {
 	// append entries to self and take ownership
 	for (int i = 0; i < other->count; i++)
-        Array_push(self, other->items[i]);
-    Array_free(other); // `self` now owns the entries
+		Array_push(self, other->items[i]);
+	Array_free(other); // `self` now owns the entries
 }
 
 int StringArray_indexOf(Array* self, char* str) {
-	for (int i=0; i<self->count; i++) {
-		if (exactMatch(self->items[i], str)) return i;
+	for (int i = 0; i < self->count; i++) {
+		if (exactMatch(self->items[i], str))
+			return i;
 	}
 	return -1;
 }
 void StringArray_free(Array* self) {
-	for (int i=0; i<self->count; i++) {
+	for (int i = 0; i < self->count; i++) {
 		free(self->items[i]);
 	}
 	Array_free(self);
@@ -91,7 +95,8 @@ void Hash_set(Hash* self, char* key, char* value) {
 }
 char* Hash_get(Hash* self, char* key) {
 	int i = StringArray_indexOf(self->keys, key);
-	if (i==-1) return NULL;
+	if (i == -1)
+		return NULL;
 	return self->values->items[i];
 }
 
@@ -111,7 +116,7 @@ Entry* Entry_new(char* path, int type) {
 }
 
 Entry* Entry_newNamed(char* path, int type, char* displayName) {
-	Entry *self = Entry_new(path, type);
+	Entry* self = Entry_new(path, type);
 	self->name = strdup(displayName);
 	return self;
 }
@@ -119,14 +124,16 @@ Entry* Entry_newNamed(char* path, int type, char* displayName) {
 void Entry_free(Entry* self) {
 	free(self->path);
 	free(self->name);
-	if (self->unique) free(self->unique);
+	if (self->unique)
+		free(self->unique);
 	free(self);
 }
 
 int EntryArray_indexOf(Array* self, char* path) {
-	for (int i=0; i<self->count; i++) {
+	for (int i = 0; i < self->count; i++) {
 		Entry* entry = self->items[i];
-		if (exactMatch(entry->path, path)) return i;
+		if (exactMatch(entry->path, path))
+			return i;
 	}
 	return -1;
 }
@@ -140,7 +147,7 @@ void EntryArray_sort(Array* self) {
 }
 
 void EntryArray_free(Array* self) {
-	for (int i=0; i<self->count; i++) {
+	for (int i = 0; i < self->count; i++) {
 		Entry_free(self->items[i]);
 	}
 	Array_free(self);
@@ -180,7 +187,7 @@ void DirectoryArray_pop(Array* self) {
 	Directory_free(Array_pop(self));
 }
 void DirectoryArray_free(Array* self) {
-	for (int i=0; i<self->count; i++) {
+	for (int i = 0; i < self->count; i++) {
 		Directory_free(self->items[i]);
 	}
 	Array_free(self);
