@@ -25,7 +25,6 @@ typedef struct finishedTask {
 	int move_h;
 	int frames;
 	int done;
-	void* userData;
 	char* entry_name;
 	SDL_Rect dst;
 } finishedTask;
@@ -41,7 +40,6 @@ typedef struct AnimTask {
 	int move_h;
 	int frames;
 	AnimTaskCallback callback;
-	void* userData;
 	char* entry_name;
 	SDL_Rect dst;
 } AnimTask;
@@ -56,17 +54,17 @@ extern SDL_Surface* globalpill;
 extern SDL_Surface* globalText;
 
 // Synchronization primitives (owned by imgloader.c)
-extern SDL_mutex* bgMutex;
-extern SDL_mutex* thumbMutex;
-extern SDL_mutex* animMutex;
-extern SDL_mutex* frameMutex;
-extern SDL_mutex* fontMutex;
-extern SDL_cond* flipCond;
-extern SDL_mutex* bgqueueMutex;
-extern SDL_mutex* thumbqueueMutex;
-extern SDL_mutex* animqueueMutex;
+extern SDL_mutex* bgMutex;		   // protects: folderbgbmp, folderbgchanged
+extern SDL_mutex* thumbMutex;	   // protects: thumbbmp, thumbchanged
+extern SDL_mutex* animMutex;	   // protects: pillRect, pilltargetY, pilltargetTextY, pillanimdone, globalpill, globalText
+extern SDL_mutex* frameMutex;	   // protects: frameReady; paired with flipCond
+extern SDL_mutex* fontMutex;	   // protects: font rendering calls
+extern SDL_cond* flipCond;		   // signalled when frameReady becomes true
+extern SDL_mutex* bgqueueMutex;	   // alias to internal bgQueue.mutex (used by render loop)
+extern SDL_mutex* thumbqueueMutex; // alias to internal thumbQueue.mutex (used by render loop)
+extern SDL_mutex* animqueueMutex;  // protects: anim task queue, currentAnimQueueSize
 
-// Shared state flags
+// Shared state flags (see mutex comments above for which mutex protects each)
 extern int folderbgchanged;
 extern int thumbchanged;
 extern SDL_Rect pillRect;
@@ -87,11 +85,11 @@ void initImageLoaderPool(void);
 void cleanupImageLoaderPool(void);
 
 // Background loading
-void startLoadFolderBackground(const char* imagePath, BackgroundLoadedCallback callback, void* userData);
+void startLoadFolderBackground(const char* imagePath, BackgroundLoadedCallback callback);
 void onBackgroundLoaded(SDL_Surface* surface);
 
 // Thumbnail loading
-void startLoadThumb(const char* thumbpath, BackgroundLoadedCallback callback, void* userData);
+void startLoadThumb(const char* thumbpath, BackgroundLoadedCallback callback);
 void onThumbLoaded(SDL_Surface* surface);
 
 // Pill animation

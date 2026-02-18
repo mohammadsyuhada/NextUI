@@ -1,5 +1,4 @@
 #include "shortcuts.h"
-#include "types.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,7 +28,7 @@ static void Shortcut_free(Shortcut* self) {
 	free(self);
 }
 
-static int ShortcutArray_indexOf(Array* self, char* path) {
+static int ShortcutArray_indexOf(Array* self, const char* path) {
 	for (int i = 0; i < self->count; i++) {
 		Shortcut* shortcut = self->items[i];
 		if (exactMatch(shortcut->path, path))
@@ -91,8 +90,8 @@ static int loadShortcuts(void) {
 
 	FILE* file = fopen(SHORTCUTS_PATH, "r");
 	if (file) {
-		char line[256];
-		while (fgets(line, 256, file) != NULL) {
+		char line[MAX_PATH];
+		while (fgets(line, MAX_PATH, file) != NULL) {
 			normalizeNewline(line);
 			trimTrailingNewlines(line);
 			if (strlen(line) == 0)
@@ -107,8 +106,8 @@ static int loadShortcuts(void) {
 			}
 
 			// Validate that the tool still exists
-			char sd_path[256];
-			sprintf(sd_path, "%s%s", SDCARD_PATH, path);
+			char sd_path[MAX_PATH];
+			snprintf(sd_path, sizeof(sd_path), "%s%s", SDCARD_PATH, path);
 
 			if (exists(sd_path)) {
 				Array_push(shortcuts, Shortcut_new(path, name));
@@ -133,7 +132,6 @@ static int loadShortcuts(void) {
 // Public API
 
 void Shortcuts_init(void) {
-	shortcuts = Array_new();
 	loadShortcuts();
 }
 
@@ -144,7 +142,7 @@ void Shortcuts_quit(void) {
 	}
 }
 
-int Shortcuts_exists(char* path) {
+int Shortcuts_exists(const char* path) {
 	if (!shortcuts)
 		return 0;
 	return ShortcutArray_indexOf(shortcuts, path) != -1;
@@ -152,6 +150,8 @@ int Shortcuts_exists(char* path) {
 
 void Shortcuts_add(Entry* entry) {
 	if (!shortcuts || !entry)
+		return;
+	if (!prefixMatch(SDCARD_PATH, entry->path))
 		return;
 
 	char* path = entry->path + strlen(SDCARD_PATH);
@@ -169,6 +169,8 @@ void Shortcuts_add(Entry* entry) {
 void Shortcuts_remove(Entry* entry) {
 	if (!shortcuts || !entry)
 		return;
+	if (!prefixMatch(SDCARD_PATH, entry->path))
+		return;
 
 	char* path = entry->path + strlen(SDCARD_PATH);
 	int idx = ShortcutArray_indexOf(shortcuts, path);
@@ -180,14 +182,12 @@ void Shortcuts_remove(Entry* entry) {
 	}
 }
 
-int Shortcuts_isInToolsFolder(char* path) {
-	char tools_path[256];
-	snprintf(tools_path, sizeof(tools_path), "%s/Tools/%s", SDCARD_PATH, PLATFORM);
-	return prefixMatch(tools_path, path);
+int Shortcuts_isInToolsFolder(const char* path) {
+	return prefixMatch(TOOLS_PATH, path);
 }
 
-int Shortcuts_isInConsoleDir(char* path) {
-	char parent_dir[256];
+int Shortcuts_isInConsoleDir(const char* path) {
+	char parent_dir[MAX_PATH];
 	strncpy(parent_dir, path, sizeof(parent_dir) - 1);
 	parent_dir[sizeof(parent_dir) - 1] = '\0';
 	char* last_slash = strrchr(parent_dir, '/');
@@ -221,8 +221,8 @@ int Shortcuts_validate(void) {
 	int needs_save = 0;
 	for (int i = shortcuts->count - 1; i >= 0; i--) {
 		Shortcut* shortcut = shortcuts->items[i];
-		char sd_path[256];
-		sprintf(sd_path, "%s%s", SDCARD_PATH, shortcut->path);
+		char sd_path[MAX_PATH];
+		snprintf(sd_path, sizeof(sd_path), "%s%s", SDCARD_PATH, shortcut->path);
 
 		if (!exists(sd_path)) {
 			Array_remove(shortcuts, shortcut);
@@ -237,7 +237,7 @@ int Shortcuts_validate(void) {
 }
 
 char* Shortcuts_getPakBasename(const char* path) {
-	static char basename[256];
+	static char basename[STR_MAX];
 
 	// Extract filename from path
 	const char* pakname = strrchr(path, '/');
@@ -256,7 +256,7 @@ char* Shortcuts_getPakBasename(const char* path) {
 void Shortcuts_confirmAction(int action, Entry* entry) {
 	if (action == 1) {
 		Shortcuts_add(entry);
-	} else {
+	} else if (action == 2) {
 		Shortcuts_remove(entry);
 	}
 }

@@ -13,6 +13,8 @@ int hide(char* file_name);
 
 char* splitString(char* str, const char* delim);
 char* replaceString2(const char* orig, char* rep, char* with);
+int replaceString(char* line, size_t buf_size, const char* search, const char* replace);
+char* escapeSingleQuotes(char* str, size_t buf_size);
 void truncateString(char* string, size_t max_len);
 void wrapString(char* string, size_t max_len, size_t max_lines);
 size_t trimString(char* out, size_t len, const char* str, bool first);

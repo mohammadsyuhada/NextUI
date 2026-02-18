@@ -73,6 +73,41 @@ void wrapString(char* string, size_t max_len, size_t max_lines) {
 	}
 	truncateString(line, max_len);
 }
+// based on https://stackoverflow.com/a/31775567/145965
+int replaceString(char* line, size_t buf_size, const char* search, const char* replace) {
+	char* sp; // start of pattern
+	if ((sp = strstr(line, search)) == NULL) {
+		return 0;
+	}
+	int count = 1;
+	size_t sLen = strlen(search);
+	size_t rLen = strlen(replace);
+	size_t tail_len = strlen(sp + sLen);
+	size_t new_total = (sp - line) + rLen + tail_len + 1;
+	if (new_total > buf_size) {
+		return -1; // insufficient buffer space
+	}
+	if (sLen > rLen) {
+		// move from right to left
+		char* src = sp + sLen;
+		char* dst = sp + rLen;
+		while ((*dst = *src) != '\0') {
+			dst++;
+			src++;
+		}
+	} else if (sLen < rLen) {
+		// move from left to right
+		memmove(sp + rLen, sp + sLen, tail_len + 1);
+	}
+	memcpy(sp, replace, rLen);
+	count += replaceString(sp + rLen, buf_size, search, replace);
+	return count;
+}
+char* escapeSingleQuotes(char* str, size_t buf_size) {
+	replaceString(str, buf_size, "'", "'\\''");
+	return str;
+}
+
 // TODO: verify this yields the same result as the one in minui.c, remove one
 // This one does not modify the input, cause we arent savages
 char* replaceString2(const char* orig, char* rep, char* with) {

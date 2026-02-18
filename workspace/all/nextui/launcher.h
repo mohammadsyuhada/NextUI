@@ -1,6 +1,7 @@
 #ifndef LAUNCHER_H
 #define LAUNCHER_H
 
+#include "defines.h"
 #include "types.h"
 #include "content.h"
 
@@ -9,27 +10,32 @@
 extern Directory* top;
 extern Array* stack;
 extern int quit;
-extern int can_resume;
-extern int should_resume;
-extern int has_preview;
-extern int has_boxart;
 extern int startgame;
-extern char slot_path[256];
-extern char preview_path[256];
-extern char boxart_path[256];
-extern int restore_depth;
-extern int restore_relative;
-extern int restore_selected;
-extern int restore_start;
-extern int restore_end;
+
+typedef struct {
+	int can_resume;
+	int should_resume;
+	int has_preview;
+	int has_boxart;
+	char slot_path[MAX_PATH];
+	char preview_path[MAX_PATH];
+	char boxart_path[MAX_PATH];
+} ResumeState;
+
+typedef struct {
+	int depth;
+	int relative;
+	int selected;
+	int start;
+	int end;
+} RestoreState;
+
+extern ResumeState resume;
+extern RestoreState restore;
 
 // Set cleanup function (called by toggleQuick for Reboot/Poweroff)
 typedef void (*CleanupPoolFunc)(void);
 void Launcher_setCleanupFunc(CleanupPoolFunc func);
-
-// String utilities
-int replaceString(char* line, const char* search, const char* replace);
-char* escapeSingleQuotes(char* str);
 
 // Navigation
 void queueNext(char* cmd);

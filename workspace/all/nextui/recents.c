@@ -37,14 +37,20 @@ void Recents_setHasM3u(HasM3uFunc func) {
 
 Recent* Recent_new(char* path, char* alias) {
 	Recent* self = malloc(sizeof(Recent));
+	if (!self)
+		return NULL;
 
-	char sd_path[256]; // only need to get emu name
-	sprintf(sd_path, "%s%s", SDCARD_PATH, path);
+	char sd_path[MAX_PATH]; // only need to get emu name
+	snprintf(sd_path, sizeof(sd_path), "%s%s", SDCARD_PATH, path);
 
-	char emu_name[256];
+	char emu_name[MAX_PATH];
 	getEmuName(sd_path, emu_name);
 
 	self->path = strdup(path);
+	if (!self->path) {
+		free(self);
+		return NULL;
+	}
 	self->alias = alias ? strdup(alias) : NULL;
 	self->available = _hasEmu ? _hasEmu(emu_name) : 0;
 	return self;
@@ -94,11 +100,22 @@ void Recents_add(char* path, char* alias) {
 	path += strlen(SDCARD_PATH); // makes paths platform agnostic
 	int id = RecentArray_indexOf(recents, path);
 	if (id == -1) { // add
-		while (recents->count >= MAX_RECENTS) {
+		Recent* recent = Recent_new(path, alias);
+		if (!recent)
+			return;
+		if (recents->count >= MAX_RECENTS) {
 			Recent_free(Array_pop(recents));
 		}
-		Array_unshift(recents, Recent_new(path, alias));
+		Array_unshift(recents, recent);
 	} else if (id > 0) { // bump to top
+		Recent* existing = recents->items[id];
+		if (alias) {
+			char* new_alias = strdup(alias);
+			if (new_alias) {
+				free(existing->alias);
+				existing->alias = new_alias;
+			}
+		}
 		for (int i = id; i > 0; i--) {
 			void* tmp = recents->items[i - 1];
 			recents->items[i - 1] = recents->items[i];
@@ -111,33 +128,42 @@ void Recents_add(char* path, char* alias) {
 int Recents_load(void) {
 	LOG_info("hasRecents %s\n", RECENT_PATH);
 	int has = 0;
+	int changed = 0;
 	RecentArray_free(recents);
 	recents = Array_new();
 
 	Array* parent_paths = Array_new();
 	if (exists(CHANGE_DISC_PATH)) {
-		char sd_path[256];
-		getFile(CHANGE_DISC_PATH, sd_path, 256);
+		changed = 1;
+		char sd_path[MAX_PATH];
+		getFile(CHANGE_DISC_PATH, sd_path, MAX_PATH);
 		if (exists(sd_path)) {
 			char* disc_path = sd_path + strlen(SDCARD_PATH); // makes path platform agnostic
 			Recent* recent = Recent_new(disc_path, NULL);
+			if (!recent)
+				goto done_disc;
 			if (recent->available)
 				has += 1;
 			Array_push(recents, recent);
 
-			char parent_path[256];
+			char parent_path[MAX_PATH];
 			strcpy(parent_path, disc_path);
-			char* tmp = strrchr(parent_path, '/') + 1;
-			tmp[0] = '\0';
-			Array_push(parent_paths, strdup(parent_path));
+			char* tmp = strrchr(parent_path, '/');
+			if (tmp) {
+				tmp[1] = '\0';
+				char* dup = strdup(parent_path);
+				if (dup)
+					Array_push(parent_paths, dup);
+			}
 		}
+	done_disc:
 		unlink(CHANGE_DISC_PATH);
 	}
 
 	FILE* file = fopen(RECENT_PATH, "r"); // newest at top
 	if (file) {
-		char line[256];
-		while (fgets(line, 256, file) != NULL) {
+		char line[MAX_PATH];
+		while (fgets(line, sizeof(line), file) != NULL) {
 			normalizeNewline(line);
 			trimTrailingNewlines(line);
 			if (strlen(line) == 0)
@@ -151,43 +177,57 @@ int Recents_load(void) {
 				alias = tmp + 1;
 			}
 
-			char sd_path[256];
-			sprintf(sd_path, "%s%s", SDCARD_PATH, path);
-			if (exists(sd_path)) {
-				if (recents->count < MAX_RECENTS) {
-					// this logic replaces an existing disc from a multi-disc game with the last used
-					char m3u_path[256];
-					if (_hasM3u && _hasM3u(sd_path, m3u_path)) { // TODO: this might tank launch speed
-						char parent_path[256];
-						strcpy(parent_path, path);
-						char* tmp = strrchr(parent_path, '/') + 1;
-						tmp[0] = '\0';
-
-						int found = 0;
-						for (int i = 0; i < parent_paths->count; i++) {
-							char* path = parent_paths->items[i];
-							if (prefixMatch(path, parent_path)) {
-								found = 1;
-								break;
-							}
-						}
-						if (found)
-							continue;
-
-						Array_push(parent_paths, strdup(parent_path));
-					}
-
-					Recent* recent = Recent_new(path, alias);
-					if (recent->available)
-						has += 1;
-					Array_push(recents, recent);
-				}
+			char sd_path[MAX_PATH];
+			snprintf(sd_path, sizeof(sd_path), "%s%s", SDCARD_PATH, path);
+			if (!exists(sd_path)) {
+				changed = 1;
+				continue;
 			}
+			if (recents->count >= MAX_RECENTS) {
+				changed = 1;
+				continue;
+			}
+			// this logic replaces an existing disc from a multi-disc game with the last used
+			char m3u_path[MAX_PATH];
+			if (_hasM3u && _hasM3u(sd_path, m3u_path)) { // TODO: this might tank launch speed
+				char parent_path[MAX_PATH];
+				strcpy(parent_path, path);
+				char* tmp = strrchr(parent_path, '/');
+				if (!tmp)
+					goto skip_m3u;
+				tmp[1] = '\0';
+
+				int found = 0;
+				for (int i = 0; i < parent_paths->count; i++) {
+					char* parent = parent_paths->items[i];
+					if (prefixMatch(parent, parent_path)) {
+						found = 1;
+						break;
+					}
+				}
+				if (found) {
+					changed = 1;
+					continue;
+				}
+
+				char* dup = strdup(parent_path);
+				if (dup)
+					Array_push(parent_paths, dup);
+			}
+
+		skip_m3u:;
+			Recent* recent = Recent_new(path, alias);
+			if (!recent)
+				continue;
+			if (recent->available)
+				has += 1;
+			Array_push(recents, recent);
 		}
 		fclose(file);
 	}
 
-	Recents_save();
+	if (changed)
+		Recents_save();
 
 	StringArray_free(parent_paths);
 	return has > 0;
@@ -225,8 +265,8 @@ Entry* Recents_entryFromRecent(Recent* recent) {
 	if (!recent || !recent->available)
 		return NULL;
 
-	char sd_path[256];
-	sprintf(sd_path, "%s%s", SDCARD_PATH, recent->path);
+	char sd_path[MAX_PATH];
+	snprintf(sd_path, sizeof(sd_path), "%s%s", SDCARD_PATH, recent->path);
 	int type = suffixMatch(".pak", sd_path) ? ENTRY_PAK : ENTRY_ROM; // ???
 	Entry* entry = Entry_new(sd_path, type);
 	if (recent->alias) {
@@ -238,6 +278,8 @@ Entry* Recents_entryFromRecent(Recent* recent) {
 
 Array* Recents_getEntries(void) {
 	Array* entries = Array_new();
+	if (!recents)
+		return entries;
 	for (int i = 0; i < recents->count; i++) {
 		Recent* recent = recents->items[i];
 		Entry* entry = Recents_entryFromRecent(recent);
