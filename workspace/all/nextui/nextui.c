@@ -24,6 +24,7 @@
 #include "launcher.h"
 #include "pill.h"
 #include "quickmenu.h"
+#include "ui_list.h"
 #include "recents.h"
 #include "types.h"
 
@@ -624,10 +625,10 @@ int main(int argc, char* argv[]) {
 						// This spaghetti is preventing white text on white pill when
 						// volume/color temp is shown, dont ask me why. This all needs to
 						// get tossed out and redone properly later.
-						SDL_Color text_color = uintToColour(THEME_COLOR4_255);
+						SDL_Color text_color = UI_getListTextColor(false);
 						int notext = 0;
 						if (!row_has_moved && row_is_selected) {
-							text_color = uintToColour(THEME_COLOR5_255);
+							text_color = UI_getListTextColor(true);
 							notext = 1;
 						}
 

@@ -7,6 +7,7 @@
 #include "config.h"
 #include "imgloader.h"
 #include "pill.h"
+#include "ui_list.h"
 
 ///////////////////////////////////////
 // Types
@@ -391,12 +392,12 @@ void Pill_update(const char* entry_name, int max_width,
 	pillSurface = SDL_CreateRGBSurfaceWithFormat(
 		SDL_SWSURFACE, max_width, SCALE1(PILL_SIZE), FIXED_DEPTH,
 		screen->format->format);
-	GFX_blitPillDark(ASSET_WHITE_PILL, pillSurface,
-					 &(SDL_Rect){0, 0, max_width, SCALE1(PILL_SIZE)});
+	UI_drawListItemBg(pillSurface,
+					  &(SDL_Rect){0, 0, max_width, SCALE1(PILL_SIZE)}, true);
 	pillW = max_width;
 	SDL_UnlockMutex(pillAnimMutex);
 
-	updatePillTextSurface(entry_name, max_width, uintToColour(THEME_COLOR5_255));
+	updatePillTextSurface(entry_name, max_width, UI_getListTextColor(true));
 
 	PillAnimTask* task = malloc(sizeof(PillAnimTask));
 	if (task) {
@@ -448,7 +449,7 @@ void Pill_renderAnimFrame(bool visible) {
 
 void Pill_renderScrollText(const char* entry_text, int available_width,
 						   int text_offset_y, int row) {
-	SDL_Color text_color = uintToColour(THEME_COLOR5_255);
+	SDL_Color text_color = UI_getListTextColor(true);
 	char cached_display_name[256];
 	int text_width =
 		GFX_getTextWidth(font.large, entry_text, cached_display_name,
