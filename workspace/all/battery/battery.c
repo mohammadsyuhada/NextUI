@@ -7,6 +7,7 @@
 
 #include "defines.h"
 #include "api.h"
+#include "ui_components.h"
 #include "utils.h"
 
 #include <sqlite3.h>
@@ -682,11 +683,9 @@ int main(int argc, char* argv[]) {
 			renderPage();
 
 			if (show_setting)
-				GFX_blitHardwareHints(screen, show_setting);
+				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, GFX_getHardwareHintPairs(show_setting));
 			else
-				GFX_blitButtonGroup((char*[]){"L/R", "SCROLL", "L1/R1", "ZOOM", NULL}, 0, screen, 0);
-
-			GFX_blitButtonGroup((char*[]){"B", "BACK", NULL}, 1, screen, 1);
+				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, (char*[]){"L/R", "SCROLL", "L1/R1", "ZOOM", NULL});
 
 			GFX_flip(screen);
 			dirty = false;

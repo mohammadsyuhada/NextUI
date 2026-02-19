@@ -1,5 +1,10 @@
 #include "keyboardprompt.hpp"
 
+extern "C"
+{
+#include "ui_components.h"
+}
+
 constexpr int keyboardRows = 5;
 constexpr int keyboardColumns = 14;
 // keyboard_layout_lowercase is the default keyboard layout
@@ -316,7 +321,7 @@ void KeyboardPrompt::drawKeyboard(SDL_Surface *screen, const AppState &state)
 
     // draw the button group on the button-right
     char *hints[] = {(char *)("Y"), (char *)("EXIT"), (char *)("X"), ((char *)"ENTER"), NULL};
-    GFX_blitButtonGroup(hints, 1, screen, 1);
+    UI_renderButtonHintBar(screen, hints, NULL);
 
     // draw keyboard title
     if (!state.keyboard.title.empty())

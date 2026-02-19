@@ -484,7 +484,7 @@ int main(int argc, char* argv[]) {
 			GFX_clear(screen);
 
 			// render top menu bar
-			const char* menu_title = stack->count > 1 ? top->name : "NextUI-Redux";
+			const char* menu_title = stack->count > 1 ? top->name : "NextUI Redux";
 			int ow = UI_renderMenuBar(screen, menu_title, show_setting);
 			if (currentScreen == SCREEN_QUICKMENU) {
 				QuickMenu_render(lastScreen, show_setting, ow,
@@ -553,32 +553,52 @@ int main(int argc, char* argv[]) {
 				}
 
 				// buttons
-				if (show_setting && !GetHDMI())
-					GFX_blitHardwareHints(screen, show_setting);
-				else if (total > 0 &&
-						 (Shortcuts_isInToolsFolder(top->path) ||
-						  Shortcuts_isInConsoleDir(top->path)) &&
-						 canPinEntry(entry)) {
-					char* label = Shortcuts_exists(entry->path + strlen(SDCARD_PATH))
-									  ? "UNPIN"
-									  : "PIN";
-					GFX_blitButtonGroup((char*[]){"Y", label, NULL}, 0, screen, 0);
-				}
+				{
+					char* right_pairs[16] = {NULL};
+					int p = 0;
 
-				if (total == 0) {
-					if (stack->count > 1) {
-						GFX_blitButtonGroup((char*[]){"B", "BACK", NULL}, 0, screen, 1);
+					// hardware hints or pin action
+					if (show_setting && !GetHDMI()) {
+						char** hw = GFX_getHardwareHintPairs(show_setting);
+						for (int i = 0; hw[i]; i++)
+							right_pairs[p++] = hw[i];
+					} else if (total > 0 &&
+							   (Shortcuts_isInToolsFolder(top->path) ||
+								Shortcuts_isInConsoleDir(top->path)) &&
+							   canPinEntry(entry)) {
+						right_pairs[p++] = "Y";
+						right_pairs[p++] = Shortcuts_exists(entry->path + strlen(SDCARD_PATH))
+											   ? "UNPIN"
+											   : "PIN";
 					}
-				} else if (confirm_shortcut_action == SHORTCUT_NONE) {
-					if (resume.can_resume) {
-						GFX_blitButtonGroup((char*[]){"X", "RESUME", "A", "OPEN", NULL}, 1,
-											screen, 1);
-					} else if (stack->count > 1) {
-						GFX_blitButtonGroup((char*[]){"B", "BACK", "A", "OPEN", NULL}, 1,
-											screen, 1);
-					} else {
-						GFX_blitButtonGroup((char*[]){"A", "OPEN", NULL}, 0, screen, 1);
+
+					// navigation actions
+					if (total == 0) {
+						if (stack->count > 1) {
+							right_pairs[p++] = "B";
+							right_pairs[p++] = "BACK";
+						}
+					} else if (confirm_shortcut_action == SHORTCUT_NONE) {
+						if (resume.can_resume) {
+							right_pairs[p++] = "X";
+							right_pairs[p++] = "RESUME";
+							right_pairs[p++] = "B";
+							right_pairs[p++] = "BACK";
+							right_pairs[p++] = "A";
+							right_pairs[p++] = "OPEN";
+						} else if (stack->count > 1) {
+							right_pairs[p++] = "B";
+							right_pairs[p++] = "BACK";
+							right_pairs[p++] = "A";
+							right_pairs[p++] = "OPEN";
+						} else {
+							right_pairs[p++] = "A";
+							right_pairs[p++] = "OPEN";
+						}
 					}
+
+					if (right_pairs[0])
+						UI_renderButtonHintBar(screen, right_pairs, NULL);
 				}
 
 				if (total > 0) {

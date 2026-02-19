@@ -74,9 +74,10 @@
 
 // all before scale
 #define PILL_SIZE 30
-#define BUTTON_SIZE 20
-#define BUTTON_MARGIN 5 // ((PILL_SIZE - BUTTON_SIZE) / 2)
-#define BUTTON_PADDING 12
+#define BUTTON_SIZE 16
+#define BUTTON_MARGIN 6
+#define BUTTON_TEXT_GAP 3
+#define BUTTON_PADDING 10
 #define SETTINGS_SIZE 4
 #define SETTINGS_WIDTH 80
 

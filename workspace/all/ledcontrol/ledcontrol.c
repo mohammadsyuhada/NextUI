@@ -4,6 +4,7 @@
 #include "sdl.h"
 #include "defines.h"
 #include "api.h"
+#include "ui_components.h"
 #include "utils.h"
 
 
@@ -263,10 +264,9 @@ int main(int argc, char* argv[]) {
 			int ow = GFX_blitHardwareGroup(screen, show_setting);
 
 			if (show_setting)
-				GFX_blitHardwareHints(screen, show_setting);
-
-			GFX_blitButtonGroup((char*[]){"B", "BACK", NULL}, 1, screen, 1);
-			GFX_blitButtonGroup((char*[]){"L/R", "Select light", NULL}, 0, screen, 0);
+				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, GFX_getHardwareHintPairs(show_setting));
+			else
+				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, (char*[]){"L/R", "Select light", NULL});
 
 
 			int max_width = screen->w - SCALE1(PADDING * 2) - ow;

@@ -24,6 +24,7 @@
 
 #include "defines.h"
 #include "api.h"
+#include "ui_components.h"
 #include "utils.h"
 #include "scaler.h"
 #include "notification.h"
@@ -6439,7 +6440,7 @@ static int Menu_messageWithFont(char* message, char** pairs, TTF_Font* f) {
 
 		GFX_clear(screen);
 		GFX_blitMessage(f, message, screen, &(SDL_Rect){SCALE1(PADDING), SCALE1(PADDING), screen->w - SCALE1(2 * PADDING), screen->h - SCALE1(PILL_SIZE + PADDING)});
-		GFX_blitButtonGroup(pairs, 0, screen, 1);
+		UI_renderButtonHintBar(screen, pairs, NULL);
 		GFX_flip(screen);
 		dirty = false;
 
@@ -7401,7 +7402,7 @@ static int OptionAchievements_showDetail(MenuList* list, int i) {
 
 			// Button hints - update based on current mute state
 			char* hints[] = {"X", is_muted ? "UNMUTE" : "MUTE", "B", "BACK", NULL};
-			GFX_blitButtonGroup(hints, 0, screen, 1);
+			UI_renderButtonHintBar(screen, hints, NULL);
 			GFX_flip(screen);
 			dirty = false;
 		}
@@ -7732,7 +7733,7 @@ static int OptionAchievements_openMenu(MenuList* list, int i) {
 
 			// Button hints at bottom with dynamic Y button text
 			char* hints[] = {"Y", ach_filter_locked_only ? "SHOW ALL" : "SHOW LOCKED", "X", "MUTE", NULL};
-			GFX_blitButtonGroup(hints, 0, screen, 1);
+			UI_renderButtonHintBar(screen, hints, NULL);
 
 			GFX_flip(screen);
 			dirty = false;
@@ -8733,10 +8734,9 @@ static void Menu_loop(void) {
 			SDL_FreeSurface(text);
 
 			if (show_setting && !GetHDMI())
-				GFX_blitHardwareHints(screen, show_setting);
+				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "OKAY", NULL}, GFX_getHardwareHintPairs(show_setting));
 			else
-				GFX_blitButtonGroup((char*[]){BTN_SLEEP == BTN_POWER ? "POWER" : "MENU", "SLEEP", NULL}, 0, screen, 0);
-			GFX_blitButtonGroup((char*[]){"B", "BACK", "A", "OKAY", NULL}, 1, screen, 1);
+				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "OKAY", NULL}, (char*[]){BTN_SLEEP == BTN_POWER ? "POWER" : "MENU", "SLEEP", NULL});
 
 			// list
 			oy = (((DEVICE_HEIGHT / FIXED_SCALE) - PADDING * 2) - (MENU_ITEM_COUNT * PILL_SIZE)) / 2;

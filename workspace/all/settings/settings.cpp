@@ -4,6 +4,7 @@ extern "C"
 
 #include "defines.h"
 #include "api.h"
+#include "ui_components.h"
 #include "utils.h"
 #include "ra_auth.h"
 }
@@ -878,14 +879,16 @@ int main(int argc, char *argv[])
                 if (showHints)
                 {
                     if (ctx.show_setting && !GetHDMI())
-                        GFX_blitHardwareHints(ctx.screen, ctx.show_setting);
+                    {
+                        char *hints[] = {(char *)("B"), (char *)("BACK"), (char *)("A"), (char *)("OKAY"), NULL};
+                        UI_renderButtonHintBar(ctx.screen, hints, GFX_getHardwareHintPairs(ctx.show_setting));
+                    }
                     else
                     {
-                        char *hints[] = {(char *)("MENU"), (char *)("SLEEP"), NULL};
-                        GFX_blitButtonGroup(hints, 0, ctx.screen, 0);
+                        char *left_hints[] = {(char *)("MENU"), (char *)("SLEEP"), NULL};
+                        char *right_hints[] = {(char *)("B"), (char *)("BACK"), (char *)("A"), (char *)("OKAY"), NULL};
+                        UI_renderButtonHintBar(ctx.screen, right_hints, left_hints);
                     }
-                    char *hints[] = {(char *)("B"), (char *)("BACK"), (char *)("A"), (char *)("OKAY"), NULL};
-                    GFX_blitButtonGroup(hints, 1, ctx.screen, 1);
                 }
 
                 ctx.menu->draw(ctx.screen, listRect);

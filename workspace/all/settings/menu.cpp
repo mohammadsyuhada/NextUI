@@ -4,6 +4,7 @@ extern "C"
 {
 #include "defines.h"
 #include "api.h"
+#include "ui_components.h"
 #include "utils.h"
 }
 
@@ -942,10 +943,10 @@ static void drawOverlayLocal(SDL_Surface* screen) {
     if (overlayDismissMode != OverlayDismissMode::None) {
         if (overlayDismissMode == OverlayDismissMode::DismissOnB) {
             char *hints[] = {(char *)("B"), (char *)("BACK"), NULL};
-            GFX_blitButtonGroup(hints, 1, screen, 1);
+            UI_renderButtonHintBar(screen, hints, NULL);
         } else if (overlayDismissMode == OverlayDismissMode::DismissOnA) {
             char *hints[] = {(char *)("A"), (char *)("OK"), NULL};
-            GFX_blitButtonGroup(hints, 1, screen, 1);
+            UI_renderButtonHintBar(screen, hints, NULL);
         }
     }
 }

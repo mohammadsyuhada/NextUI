@@ -1,5 +1,6 @@
 #include "defines.h"
 #include "api.h"
+#include "ui_components.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -1549,55 +1550,72 @@ void GFX_blitBattery(SDL_Surface* dst, SDL_Rect* dst_rect) {
 int GFX_getButtonWidth(char* hint, char* button) {
 	int button_width = 0;
 	int width;
-
-	int special_case = !strcmp(button, BRIGHTNESS_BUTTON_LABEL); // TODO: oof
+	int btn_sz = SCALE1(BUTTON_SIZE);
 
 	if (strlen(button) == 1) {
-		button_width += SCALE1(BUTTON_SIZE);
+		button_width += btn_sz;
 	} else {
-		button_width += SCALE1(BUTTON_SIZE) / 2;
-		TTF_SizeUTF8(special_case ? font.large : font.tiny, button, &width, NULL);
+		button_width += btn_sz / 2;
+		TTF_SizeUTF8(font.tiny, button, &width, NULL);
 		button_width += width;
 	}
-	button_width += SCALE1(BUTTON_MARGIN);
+	button_width += SCALE1(BUTTON_TEXT_GAP);
 
-	TTF_SizeUTF8(font.small, hint, &width, NULL);
-	button_width += width + SCALE1(BUTTON_MARGIN);
+	TTF_SizeUTF8(font.tiny, hint, &width, NULL);
+	button_width += width;
 	return button_width;
+}
+static void GFX_drawFilledCircle(SDL_Surface* sur, int cx, int cy, int radius, Uint32 color) {
+	for (int dy = -radius; dy <= radius; dy++) {
+		int dx = (int)SDL_sqrt(radius * radius - dy * dy);
+		SDL_FillRect(sur, &(SDL_Rect){cx - dx, cy + dy, dx * 2 + 1, 1}, color);
+	}
+}
+static void GFX_drawFilledRoundedRect(SDL_Surface* sur, int x, int y, int w, int h, Uint32 color) {
+	int r = h / 2;
+	// Center fill
+	SDL_FillRect(sur, &(SDL_Rect){x + r, y, w - h, h}, color);
+	// Left and right caps
+	for (int dy = -r; dy <= r; dy++) {
+		int dx = (int)SDL_sqrt(r * r - dy * dy);
+		SDL_FillRect(sur, &(SDL_Rect){x + r - dx, y + r + dy, dx, 1}, color);
+		SDL_FillRect(sur, &(SDL_Rect){x + w - r, y + r + dy, dx + 1, 1}, color);
+	}
 }
 void GFX_blitButton(char* hint, char* button, SDL_Surface* dst, SDL_Rect* dst_rect) {
 	SDL_Surface* text;
 	int ox = 0;
-
-	int special_case = !strcmp(button, BRIGHTNESS_BUTTON_LABEL); // TODO: oof
+	int btn_sz = SCALE1(BUTTON_SIZE);
+	SDL_Color btn_color_sdl = uintToColour(THEME_COLOR1_255);
+	Uint32 btn_color = SDL_MapRGB(dst->format, btn_color_sdl.r, btn_color_sdl.g, btn_color_sdl.b);
 
 	// button
 	if (strlen(button) == 1) {
-		GFX_blitAssetColor(ASSET_BUTTON, NULL, dst, dst_rect, THEME_COLOR1);
+		GFX_drawFilledCircle(dst, dst_rect->x + btn_sz / 2, dst_rect->y + btn_sz / 2, btn_sz / 2, btn_color);
 
 		// label
-		text = TTF_RenderUTF8_Blended(font.medium, button, ALT_BUTTON_TEXT_COLOR);
-		SDL_BlitSurface(text, NULL, dst, &(SDL_Rect){dst_rect->x + (SCALE1(BUTTON_SIZE) - text->w) / 2, dst_rect->y + (SCALE1(BUTTON_SIZE) - text->h) / 2});
-		ox += SCALE1(BUTTON_SIZE);
+		text = TTF_RenderUTF8_Blended(font.tiny, button, ALT_BUTTON_TEXT_COLOR);
+		SDL_BlitSurface(text, NULL, dst, &(SDL_Rect){dst_rect->x + (btn_sz - text->w) / 2, dst_rect->y + (btn_sz - text->h) / 2});
+		ox += btn_sz;
 		SDL_FreeSurface(text);
 	} else {
-		text = TTF_RenderUTF8_Blended(special_case ? font.large : font.tiny, button, ALT_BUTTON_TEXT_COLOR);
-		GFX_blitPillDark(ASSET_BUTTON, dst, &(SDL_Rect){dst_rect->x, dst_rect->y, SCALE1(BUTTON_SIZE) / 2 + text->w, SCALE1(BUTTON_SIZE)});
-		ox += SCALE1(BUTTON_SIZE) / 4;
+		text = TTF_RenderUTF8_Blended(font.tiny, button, ALT_BUTTON_TEXT_COLOR);
+		int pill_w = btn_sz / 2 + text->w;
+		GFX_drawFilledRoundedRect(dst, dst_rect->x, dst_rect->y, pill_w, btn_sz, btn_color);
+		ox += btn_sz / 4;
 
-		int oy = special_case ? SCALE1(-2) : 0;
-		SDL_BlitSurface(text, NULL, dst, &(SDL_Rect){ox + dst_rect->x, oy + dst_rect->y + (SCALE1(BUTTON_SIZE) - text->h) / 2, text->w, text->h});
+		SDL_BlitSurface(text, NULL, dst, &(SDL_Rect){ox + dst_rect->x, dst_rect->y + (btn_sz - text->h) / 2, text->w, text->h});
 		ox += text->w;
-		ox += SCALE1(BUTTON_SIZE) / 4;
+		ox += btn_sz / 4;
 		SDL_FreeSurface(text);
 	}
 
-	ox += SCALE1(BUTTON_MARGIN);
+	ox += SCALE1(BUTTON_TEXT_GAP);
 
 	// hint text
 	SDL_Color text_color = uintToColour(THEME_COLOR6_255);
-	text = TTF_RenderUTF8_Blended(font.small, hint, text_color);
-	SDL_BlitSurface(text, NULL, dst, &(SDL_Rect){ox + dst_rect->x, dst_rect->y + (SCALE1(BUTTON_SIZE) - text->h) / 2, text->w, text->h});
+	text = TTF_RenderUTF8_Blended(font.tiny, hint, text_color);
+	SDL_BlitSurface(text, NULL, dst, &(SDL_Rect){ox + dst_rect->x, dst_rect->y + (btn_sz - text->h) / 2, text->w, text->h});
 	SDL_FreeSurface(text);
 }
 void GFX_blitMessage(TTF_Font* font, char* msg, SDL_Surface* dst, SDL_Rect* dst_rect) {
@@ -1753,15 +1771,15 @@ SDL_Surface* GFX_createScreenFormatSurface(int width, int height) {
 
 int GFX_blitHardwareGroup(SDL_Surface* dst, int show_setting) {
 	int ox;
-	int oy;
 	int ow = 0;
+
+	int bar_h = SCALE1(BUTTON_SIZE) + SCALE1(BUTTON_MARGIN * 2);
 
 	if (show_setting && !GetHDMI()) {
 		// Use the helper function to render the indicator at the standard position
 		ow = SCALE1(PILL_SIZE + SETTINGS_WIDTH + 10 + 4);
 		ox = dst->w - SCALE1(PADDING) - ow;
-		oy = SCALE1(PADDING) / 2;
-		GFX_blitHardwareIndicator(dst, ox, oy, (IndicatorType)show_setting);
+		GFX_blitHardwareIndicator(dst, ox, 0, (IndicatorType)show_setting);
 	} else {
 		ConnectionStrength strength = PLAT_connectionStrength();
 		int show_wifi = strength > SIGNAL_STRENGTH_OFF;
@@ -1772,12 +1790,11 @@ int GFX_blitHardwareGroup(SDL_Surface* dst, int show_setting) {
 		SDL_Rect battery_rect = asset_rects[ASSET_BATTERY];
 
 		if (!show_bt && !show_wifi && !show_clock) {
-			ow = SCALE1(PILL_SIZE);
+			ow = battery_rect.w + SCALE1(BUTTON_MARGIN * 2);
 			ox = dst->w - SCALE1(PADDING) - ow;
-			oy = SCALE1(PADDING) / 2;
 
-			int battery_x = ox + (SCALE1(PILL_SIZE) - (battery_rect.w + FIXED_SCALE)) / 2;
-			int battery_y = oy + (SCALE1(PILL_SIZE) - battery_rect.h) / 2;
+			int battery_x = ox + (ow - battery_rect.w) / 2;
+			int battery_y = (bar_h - battery_rect.h) / 2;
 
 			GFX_blitBatteryAtPosition(dst, battery_x, battery_y);
 		} else {
@@ -1806,13 +1823,12 @@ int GFX_blitHardwareGroup(SDL_Surface* dst, int show_setting) {
 				else
 					strftime(timeString, 12, "%-I:%M %p", &tm);
 				char display_name[12];
-				clock_width = GFX_getTextWidth(font.small, timeString, display_name, SCALE1(PILL_SIZE), 0);
+				clock_width = GFX_getTextWidth(font.small, timeString, display_name, bar_h, 0);
 				clock = TTF_RenderUTF8_Blended(font.small, display_name, uintToColour(THEME_COLOR6_255));
 				ow += clock_width + SCALE1(BUTTON_MARGIN);
 			}
 
 			ox = dst->w - SCALE1(PADDING) - ow;
-			oy = SCALE1(PADDING) / 2;
 
 			ox += SCALE1(BUTTON_MARGIN);
 
@@ -1820,7 +1836,7 @@ int GFX_blitHardwareGroup(SDL_Surface* dst, int show_setting) {
 				int asset = ASSET_BLUETOOTH;
 				SDL_Rect bt_rect = asset_rects[asset];
 				int x = ox;
-				int y = oy + (SCALE1(PILL_SIZE) - bt_rect.h) / 2;
+				int y = (bar_h - bt_rect.h) / 2;
 
 				GFX_blitAssetColor(asset, NULL, dst, &(SDL_Rect){x, y}, THEME_COLOR6);
 				ox += bt_rect.w + SCALE1(BUTTON_MARGIN);
@@ -1833,21 +1849,21 @@ int GFX_blitHardwareGroup(SDL_Surface* dst, int show_setting) {
 																									: ASSET_WIFI_OFF; // this should use ASSET_WIFI and be greyed out
 				SDL_Rect wifi_rect = asset_rects[asset];
 				int x = ox;
-				int y = oy + (SCALE1(PILL_SIZE) - wifi_rect.h) / 2;
+				int y = (bar_h - wifi_rect.h) / 2;
 
 				GFX_blitAssetColor(asset, NULL, dst, &(SDL_Rect){x, y}, THEME_COLOR6);
 				ox += wifi_rect.w + SCALE1(BUTTON_MARGIN);
 			}
 
 			int battery_x = ox;
-			int battery_y = oy + (SCALE1(PILL_SIZE) - battery_rect.h) / 2;
+			int battery_y = (bar_h - battery_rect.h) / 2;
 
 			GFX_blitBatteryAtPosition(dst, battery_x, battery_y);
 			ox += battery_rect.w + SCALE1(BUTTON_MARGIN);
 
 			if (show_clock && clock) {
 				int x = ox;
-				int y = oy + (SCALE1(PILL_SIZE) - clock->h) / 2;
+				int y = (bar_h - clock->h) / 2;
 				SDL_BlitSurface(clock, NULL, dst, &(SDL_Rect){x, y});
 				SDL_FreeSurface(clock);
 			}
@@ -1856,61 +1872,20 @@ int GFX_blitHardwareGroup(SDL_Surface* dst, int show_setting) {
 
 	return ow;
 }
-void GFX_blitHardwareHints(SDL_Surface* dst, int show_setting) {
+char** GFX_getHardwareHintPairs(int show_setting) {
+	static char* brightness_pairs[] = {BRIGHTNESS_BUTTON_LABEL, "BRIGHTNESS", NULL};
+	static char* colortemp_pairs[] = {BRIGHTNESS_BUTTON_LABEL, "COLOR TEMP", NULL};
+	static char* default_pairs[] = {"MNU", "BRGHT", "SEL", "CLTMP", NULL};
+
 	if (show_setting == INDICATOR_BRIGHTNESS)
-		GFX_blitButtonGroup((char*[]){BRIGHTNESS_BUTTON_LABEL, "BRIGHTNESS", NULL}, 0, dst, 0);
-	else if (show_setting == INDICATOR_COLORTEMP)
-		GFX_blitButtonGroup((char*[]){BRIGHTNESS_BUTTON_LABEL, "COLOR TEMP", NULL}, 0, dst, 0);
-	else
-		GFX_blitButtonGroup((char*[]){"MNU", "BRGHT", "SEL", "CLTMP", NULL}, 0, dst, 0);
+		return brightness_pairs;
+	if (show_setting == INDICATOR_COLORTEMP)
+		return colortemp_pairs;
+	return default_pairs;
 }
 
-int GFX_blitButtonGroup(char** pairs, int primary, SDL_Surface* dst, int align_right) {
-	int ox;
-	int oy;
-	int ow;
-	char* hint;
-	char* button;
-
-	struct Hint {
-		char* hint;
-		char* button;
-		int ow;
-	} hints[2];
-	int w = 0; // individual button dimension
-	int h = 0; // hints index
-	ow = 0;	   // full pill width
-	ox = align_right ? dst->w - SCALE1(PADDING) : SCALE1(PADDING);
-	oy = dst->h - SCALE1(PADDING + PILL_SIZE);
-
-	for (int i = 0; i < 2; i++) {
-		if (!pairs[i * 2])
-			break;
-		if (HAS_SKINNY_SCREEN && i != primary)
-			continue; // space saving
-
-		button = pairs[i * 2];
-		hint = pairs[i * 2 + 1];
-		w = GFX_getButtonWidth(hint, button);
-		hints[h].hint = hint;
-		hints[h].button = button;
-		hints[h].ow = w;
-		h += 1;
-		ow += SCALE1(BUTTON_MARGIN) + w;
-	}
-
-	ow += SCALE1(BUTTON_MARGIN);
-	if (align_right)
-		ox -= ow;
-	GFX_blitPillColor(ASSET_WHITE_PILL, dst, &(SDL_Rect){ox, oy, ow, SCALE1(PILL_SIZE)}, THEME_COLOR2, RGB_WHITE);
-
-	ox += SCALE1(BUTTON_MARGIN);
-	oy += SCALE1(BUTTON_MARGIN);
-	for (int i = 0; i < h; i++) {
-		GFX_blitButton(hints[i].hint, hints[i].button, dst, &(SDL_Rect){ox, oy});
-		ox += hints[i].ow + SCALE1(BUTTON_MARGIN);
-	}
-	return ow;
+void GFX_blitHardwareHints(SDL_Surface* dst, int show_setting) {
+	UI_renderButtonHintBar(dst, NULL, GFX_getHardwareHintPairs(show_setting));
 }
 
 #define MAX_TEXT_LINES 16

@@ -158,10 +158,9 @@ void QuickMenu_render(int lastScreen, int show_setting, int ow,
 	}
 
 	if (show_setting && !GetHDMI())
-		GFX_blitHardwareHints(screen, show_setting);
-
-	GFX_blitButtonGroup((char*[]){"B", "BACK", "A", "OPEN", NULL}, 1,
-						screen, 1);
+		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "OPEN", NULL}, GFX_getHardwareHintPairs(show_setting));
+	else
+		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "OPEN", NULL}, NULL);
 
 	if (CFG_getShowQuickswitcherUI()) {
 #define MENU_ITEM_SIZE 72	 // item size, top line

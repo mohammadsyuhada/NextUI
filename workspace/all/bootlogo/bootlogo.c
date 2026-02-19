@@ -8,6 +8,7 @@
 
 #include "defines.h"
 #include "api.h"
+#include "ui_components.h"
 #include "utils.h"
 
 static bool quit = false;
@@ -160,8 +161,7 @@ int main(int argc, char* argv[]) {
 				SDL_BlitSurface(image, NULL, screen, &image_rect);
 			}
 
-			GFX_blitButtonGroup((char*[]){"L/R", "SCROLL", NULL}, 0, screen, 0);
-			GFX_blitButtonGroup((char*[]){"A", "SET", "B", "BACK", NULL}, 1, screen, 1);
+			UI_renderButtonHintBar(screen, (char*[]){"A", "SET", "B", "BACK", NULL}, (char*[]){"L/R", "SCROLL", NULL});
 
 			GFX_flip(screen);
 			dirty = false;

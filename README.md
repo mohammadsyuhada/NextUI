@@ -5,6 +5,8 @@ Minimal on the surface. Structured underneath. Built to last.
 
 [NextUI](https://github.com/LoveRetro/NextUI) is a custom firmware for retro handheld gaming devices. It replaces the stock operating system with a clean, minimal interface focused on playing retro games with no unnecessary bloat.
 
+![nextui-redux](https://raw.githubusercontent.com/mohammadsyuhada/NextUI-Redux/main/.github/resources/demo.gif)
+
 ## Supported Devices
 
 - **Trimui Brick**
@@ -27,10 +29,17 @@ It is a deliberate divergence — feature-driven and structure-focused.
 
 ## What's Different
 
-Changes shipped in this fork:
+Changes:
 
-- Game art fallback for the game switcher
-- Tool/Game shortcut to main menu for faster access
+- Refactored nextui.c from monolithic code to a smalle, focused components
+- Various bug fixes and code optimizations across the refactored components
+- Added clang-format tooling and code style enforcement, also support for VSCode IDE
+- Reusable UI component that can be used by other tools for a consistent design
+
+New Features:
+- Game art fallback for games without save state in the game switcher
+- Shortcut in the main menu for quick access to the regularly used Tools/Games
+- Redesigned UI. It is now consistent throughout the system.
 
 Ongoing focus areas:
 

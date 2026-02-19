@@ -7,6 +7,7 @@
 
 #include "defines.h"
 #include "api.h"
+#include "ui_components.h"
 #include "utils.h"
 
 enum {
@@ -266,11 +267,9 @@ int main(int argc, char* argv[]) {
 			GFX_blitHardwareGroup(screen, show_setting);
 
 			if (show_setting)
-				GFX_blitHardwareHints(screen, show_setting);
+				UI_renderButtonHintBar(screen, (char*[]){"B", "CANCEL", "A", "SET", NULL}, GFX_getHardwareHintPairs(show_setting));
 			else
-				GFX_blitButtonGroup((char*[]){"SELECT", show_24hour ? "12 HOUR" : "24 HOUR", NULL}, 0, screen, 0);
-
-			GFX_blitButtonGroup((char*[]){"B", "CANCEL", "A", "SET", NULL}, 1, screen, 1);
+				UI_renderButtonHintBar(screen, (char*[]){"B", "CANCEL", "A", "SET", NULL}, (char*[]){"SELECT", show_24hour ? "12 HOUR" : "24 HOUR", NULL});
 
 			// 376 or 446 (@2x)
 			// 188 or 223 (@1x)

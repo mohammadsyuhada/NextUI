@@ -383,7 +383,7 @@ int GFX_blitHardwareIndicator(SDL_Surface* dst, int x, int y, IndicatorType indi
  */
 SDL_Surface* GFX_createScreenFormatSurface(int width, int height);
 
-int GFX_blitButtonGroup(char** hints, int primary, SDL_Surface* dst, int align_right);
+char** GFX_getHardwareHintPairs(int show_setting);
 
 void GFX_assetRect(int asset, SDL_Rect* dst_rect);
 void GFX_sizeText(TTF_Font* font, const char* str, int leading, int* w, int* h);
