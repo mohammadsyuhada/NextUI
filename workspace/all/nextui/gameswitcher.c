@@ -116,7 +116,7 @@ void GameSwitcher_render(int lastScreen, SDL_Surface* blackBG,
 			text = TTF_RenderUTF8_Blended(font.large, display_name, textColor);
 			SDL_UnlockMutex(fontMutex);
 			if (text) {
-				const int text_offset_y = (SCALE1(PILL_SIZE) - text->h + 1) >> 1;
+				const int text_offset_y = (SCALE1(PILL_SIZE) - TTF_FontHeight(font.large) + 1) >> 1;
 				GFX_blitPillLight(ASSET_WHITE_PILL, screen,
 								  &(SDL_Rect){SCALE1(PADDING), SCALE1(PADDING),
 											  max_width, SCALE1(PILL_SIZE)});

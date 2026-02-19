@@ -22,7 +22,6 @@
 #include "gameswitcher.h"
 #include "imgloader.h"
 #include "launcher.h"
-#include "pill.h"
 #include "quickmenu.h"
 #include "ui_list.h"
 #include "recents.h"
@@ -62,8 +61,7 @@ static void Menu_quit(void) {
 ///////////////////////////////////////
 
 static bool dirty = true;
-static int previous_row = 0;
-static int previous_depth = 0;
+static ScrollTextState list_scroll = {0};
 static ShortcutAction confirm_shortcut_action = SHORTCUT_NONE;
 static Entry* confirm_shortcut_entry = NULL;
 
@@ -396,9 +394,6 @@ int main(int argc, char* argv[]) {
 	}
 
 	int selected_row = top->selected - top->start;
-	float targetY;
-	float previousY;
-	bool is_scrolling = false;
 	bool list_show_entry_names = true;
 
 	char folderBgPath[1024] = {0};
@@ -409,8 +404,6 @@ int main(int argc, char* argv[]) {
 		screen->format->format);
 	if (blackBG)
 		SDL_FillRect(blackBG, NULL, SDL_MapRGBA(screen->format, 0, 0, 0, 255));
-
-	Pill_init();
 
 	while (!quit) {
 		GFX_startFrame();
@@ -466,14 +459,9 @@ int main(int argc, char* argv[]) {
 
 		if (dirty) {
 			SDL_Surface* tmpOldScreen = NULL;
-			// NOTE:22 This causes slowdown when CFG_getMenuTransitions is set to
-			// false because animationdirection turns > 0 somewhere but is never set
-			// back to 0 and so this code runs on every action, will fix later
 			if (animationdirection != ANIM_NONE ||
 				(lastScreen == SCREEN_GAMELIST &&
 				 currentScreen == SCREEN_GAMESWITCHER)) {
-				if (tmpOldScreen)
-					SDL_FreeSurface(tmpOldScreen);
 				tmpOldScreen = GFX_captureRendererToSurface();
 				if (tmpOldScreen)
 					SDL_SetSurfaceBlendMode(tmpOldScreen, SDL_BLENDMODE_BLEND);
@@ -595,81 +583,45 @@ int main(int argc, char* argv[]) {
 
 				if (total > 0) {
 					selected_row = top->selected - top->start;
-					previousY = previous_row * PILL_SIZE;
-					targetY = selected_row * PILL_SIZE;
+
 					for (int i = top->start, j = 0; i < top->end; i++, j++) {
 						Entry* entry = top->entries->items[i];
 						char* entry_name = entry->name;
 						char* entry_unique = entry->unique;
+						bool row_is_selected = (j == selected_row);
+						bool row_is_top = (i == top->start);
+
+						// Calculate per-item available width (thumbnail-aware)
 						int available_width =
 							MAX(0, (had_thumb ? ox + SCALE1(BUTTON_MARGIN)
 											  : screen->w - SCALE1(BUTTON_MARGIN)) -
 									   SCALE1(PADDING * 2));
-						bool row_is_selected = (j == selected_row);
-						bool row_is_top = (i == top->start);
-						bool row_has_moved = (previous_row != selected_row ||
-											  previous_depth != stack->count);
-						if (row_is_top && !(had_thumb))
+						if (row_is_top && !had_thumb)
 							available_width -= ow;
 
+						// Prepare display text: prefer unique name, fall back to entry name
 						trimSortingMeta(&entry_name);
-						if (entry_unique) // Only render if a unique name exists
+						if (entry_unique)
 							trimSortingMeta(&entry_unique);
+						char* display_text = entry_unique ? entry_unique : entry_name;
 
-						char display_name[256];
-						int text_width = GFX_getTextWidth(
-							font.large, entry_unique ? entry_unique : entry_name,
-							display_name, available_width, SCALE1(BUTTON_PADDING * 2));
-						int max_width = MIN(available_width, text_width);
-
-						// This spaghetti is preventing white text on white pill when
-						// volume/color temp is shown, dont ask me why. This all needs to
-						// get tossed out and redone properly later.
-						SDL_Color text_color = UI_getListTextColor(false);
-						int notext = 0;
-						if (!row_has_moved && row_is_selected) {
-							text_color = UI_getListTextColor(true);
-							notext = 1;
-						}
-
-						SDL_LockMutex(fontMutex);
-						SDL_Surface* text =
-							TTF_RenderUTF8_Blended(font.large, entry_name, text_color);
-						SDL_Surface* text_unique = TTF_RenderUTF8_Blended(
-							font.large, display_name, COLOR_DARK_TEXT);
-						SDL_UnlockMutex(fontMutex);
-						if (!text || !text_unique) {
-							if (text)
-								SDL_FreeSurface(text);
-							if (text_unique)
-								SDL_FreeSurface(text_unique);
-							continue;
-						}
-						// TODO: Use actual font metrics to center, this only works in
-						// simple cases
-						const int text_offset_y = (SCALE1(PILL_SIZE) - text->h + 1) >> 1;
-						if (row_is_selected) {
-							is_scrolling =
-								list_show_entry_names &&
-								Pill_shouldScroll(display_name, max_width);
-							Pill_resetScroll();
-							bool should_animate = previous_depth == stack->count;
-							Pill_update(entry_name, max_width,
-										previousY, targetY, text_offset_y,
-										should_animate, !notext);
-						}
-						SDL_Rect text_rect = {0, 0, max_width - SCALE1(BUTTON_PADDING * 2),
-											  text->h};
-						SDL_Rect dest_rect = {SCALE1(BUTTON_MARGIN + BUTTON_PADDING),
-											  SCALE1(PADDING + (j * PILL_SIZE)) +
-												  text_offset_y};
+						int y = SCALE1(PADDING + j * PILL_SIZE);
 
 						if (list_show_entry_names) {
-							SDL_BlitSurface(text_unique, &text_rect, screen, &dest_rect);
-							SDL_BlitSurface(text, &text_rect, screen, &dest_rect);
+							char truncated[256];
+							ListLayout item_layout = {
+								.item_h = SCALE1(PILL_SIZE),
+								.max_width = available_width,
+							};
+							ListItemPos pos = UI_renderListItemPill(
+								screen, &item_layout, font.large,
+								display_text, truncated, y, row_is_selected, 0);
+							int text_width = pos.pill_width - SCALE1(BUTTON_PADDING * 2);
+							UI_renderListItemText(screen,
+												  row_is_selected ? &list_scroll : NULL,
+												  display_text, font.large,
+												  pos.text_x, pos.text_y, text_width, row_is_selected);
 						}
-						SDL_FreeSurface(text_unique); // Free after use
-						SDL_FreeSurface(text);		  // Free after use
 					}
 					if (lastScreen == SCREEN_GAMESWITCHER) {
 						SDL_Surface* gsSur = GameSwitcher_getSurface();
@@ -691,8 +643,6 @@ int main(int argc, char* argv[]) {
 												  LAYER_THUMBNAIL);
 					}
 
-					previous_row = selected_row;
-					previous_depth = stack->count;
 				} else {
 					// TODO: for some reason screen's dimensions end up being 0x0 in
 					// GFX_blitMessage...
@@ -743,9 +693,6 @@ int main(int argc, char* argv[]) {
 
 				GFX_clearLayers(LAYER_TRANSITION);
 				GFX_clearLayers(LAYER_SCROLLTEXT);
-
-				if (confirm_shortcut_action == SHORTCUT_NONE)
-					Pill_renderToLayer(list_show_entry_names);
 			}
 			if (!startgame) // dont flip if game gonna start
 				GFX_flip(screen);
@@ -754,48 +701,19 @@ int main(int argc, char* argv[]) {
 				SDL_FreeSurface(tmpOldScreen);
 
 			dirty = false;
-		} else if (Pill_hasAnimationDraw() || folderbgchanged || thumbchanged ||
-				   is_scrolling) {
-			// honestly this whole thing is here only for the scrolling text, I set it
-			// now to run this at 30fps which is enough for scrolling text, should
-			// move this to seperate animation function eventually
+		} else if (folderbgchanged || thumbchanged ||
+				   ScrollText_isScrolling(&list_scroll) || ScrollText_needsRender(&list_scroll)) {
 			updateBackgroundLayer();
 			renderThumbnail(1);
-			if (confirm_shortcut_action == SHORTCUT_NONE) {
-				Pill_renderAnimFrame(list_show_entry_names);
-			}
 			if (currentScreen != SCREEN_GAMESWITCHER &&
 				currentScreen != SCREEN_QUICKMENU) {
-				// Skip pill text rendering when confirmation dialog is shown
 				if (confirm_shortcut_action != SHORTCUT_NONE) {
-					GFX_clearLayers(LAYER_TRANSITION);
 					GFX_clearLayers(LAYER_SCROLLTEXT);
-				} else if (is_scrolling && Pill_isAnimDone() && Pill_getAnimQueueSize() < 1) {
-					int ow = GFX_blitHardwareGroup(screen, show_setting);
-					Entry* entry = top->entries->items[top->selected];
-					trimSortingMeta(&entry->name);
-					char* entry_text = entry->name;
-					if (entry->unique) {
-						trimSortingMeta(&entry->unique);
-						entry_text = entry->unique;
-					}
-
-					int available_width =
-						(had_thumb ? ox + SCALE1(BUTTON_MARGIN)
-								   : screen->w - SCALE1(BUTTON_MARGIN)) -
-						SCALE1(PADDING * 2);
-					if (top->selected == top->start && !had_thumb)
-						available_width -= ow;
-
-					int text_offset_y =
-						(SCALE1(PILL_SIZE) - TTF_FontHeight(font.large) + 1) >> 1;
-
-					if (list_show_entry_names) {
-						Pill_renderScrollText(entry_text, available_width,
-											  text_offset_y, previous_row);
-					}
 				} else {
-					Pill_renderFallback(list_show_entry_names);
+					ScrollText_activateAfterDelay(&list_scroll);
+					if (ScrollText_isScrolling(&list_scroll)) {
+						ScrollText_animateOnly(&list_scroll);
+					}
 				}
 			} else {
 				SDL_Delay(16);
@@ -846,8 +764,11 @@ int main(int argc, char* argv[]) {
 	PWR_quit();
 	PAD_quit();
 
-	// Cleanup pill animation thread first (uses frameMutex/flipCond from imgloader)
-	Pill_quit();
+	// Cleanup scroll text state
+	if (list_scroll.cached_scroll_surface) {
+		SDL_FreeSurface(list_scroll.cached_scroll_surface);
+		list_scroll.cached_scroll_surface = NULL;
+	}
 
 	// Cleanup worker threads and their synchronization primitives
 	cleanupImageLoaderPool();
