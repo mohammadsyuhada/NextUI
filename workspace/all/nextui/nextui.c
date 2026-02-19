@@ -2,6 +2,7 @@
 #include "config.h"
 #include "defines.h"
 #include "shortcuts.h"
+#include "ui_components.h"
 #include "utils.h"
 #include <assert.h>
 #include <ctype.h>
@@ -22,17 +23,18 @@
 #include "imgloader.h"
 #include "launcher.h"
 #include "quickmenu.h"
+#include "ui_list.h"
 #include "recents.h"
 #include "types.h"
 
 Directory* top;
 Array* stack; // DirectoryArray
 
-int quit = 0;
-int startgame = 0;
+bool quit = false;
+bool startgame = false;
 ResumeState resume = {0};
 RestoreState restore = {.depth = -1, .relative = -1};
-static int simple_mode = 0;
+static bool simple_mode = false;
 static int animationdirection = 0;
 
 static void Menu_init(void) {
@@ -46,7 +48,7 @@ static void Menu_init(void) {
 	openDirectory(SDCARD_PATH, 0);
 	loadLast(); // restore state when available
 
-	QuickMenu_init(simple_mode); // needs Menu_init
+	QuickMenu_init(simple_mode);
 }
 static void Menu_quit(void) {
 	Recents_quit();
@@ -58,16 +60,13 @@ static void Menu_quit(void) {
 
 ///////////////////////////////////////
 
-static int dirty = 1;
-static int previous_row = 0;
-static int previous_depth = 0;
-
-// Shortcut confirmation dialog state
-static int confirm_shortcut_action = 0; // 0=none, 1=add, 2=remove
+static bool dirty = true;
+static ScrollTextState list_scroll = {0};
+static ShortcutAction confirm_shortcut_action = SHORTCUT_NONE;
 static Entry* confirm_shortcut_entry = NULL;
 
 SDL_Surface* screen = NULL;
-static int had_thumb = 0;
+static bool had_thumb = false;
 static int ox;
 
 static void updateBackgroundLayer(void) {
@@ -85,22 +84,14 @@ static void updateBackgroundLayer(void) {
 
 static void renderThumbnail(int reset_changed) {
 	SDL_LockMutex(thumbMutex);
-	if (confirm_shortcut_action > 0) {
+	if (confirm_shortcut_action != SHORTCUT_NONE) {
 		GFX_clearLayers(LAYER_THUMBNAIL);
 		GFX_clearLayers(LAYER_SCROLLTEXT);
 	} else if (thumbbmp && thumbchanged) {
-		int img_w = thumbbmp->w;
-		int img_h = thumbbmp->h;
-		double aspect_ratio = (double)img_h / img_w;
 		int max_w = (int)(screen->w * CFG_getGameArtWidth());
 		int max_h = (int)(screen->h * 0.6);
-		int new_w = max_w;
-		int new_h = (int)(new_w * aspect_ratio);
-
-		if (new_h > max_h) {
-			new_h = max_h;
-			new_w = (int)(new_h / aspect_ratio);
-		}
+		int new_w, new_h;
+		UI_calcImageFit(thumbbmp->w, thumbbmp->h, max_w, max_h, &new_w, &new_h);
 
 		int target_x = screen->w - (new_w + SCALE1(BUTTON_MARGIN * 3));
 		int target_y = (int)(screen->h * 0.50);
@@ -133,7 +124,6 @@ static void resolveAndLoadBackground(Entry* entry, const char* rompath,
 
 	if ((entry->type == ENTRY_DIR || entry->type == ENTRY_ROM) &&
 		Shortcuts_exists(entry->path + strlen(SDCARD_PATH))) {
-		// Shortcuts have no background
 		cmpPath = entry->path;
 	} else if ((entry->type == ENTRY_DIR || entry->type == ENTRY_ROM) &&
 			   CFG_getRomsUseFolderBackground()) {
@@ -174,18 +164,6 @@ static void resolveAndLoadBackground(Entry* entry, const char* rompath,
 	}
 }
 
-static void renderConfirmationDialog(void) {
-	char message[256];
-	char* fmt =
-		confirm_shortcut_action == 1 ? "Pin \"%s\"?" : "Unpin \"%s\"?";
-	snprintf(message, sizeof(message), fmt, confirm_shortcut_entry->name);
-	SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0, 0, 0));
-	GFX_blitMessage(font.large, message, screen,
-					&(SDL_Rect){0, 0, screen->w, screen->h});
-	GFX_blitButtonGroup((char*[]){"B", "CANCEL", "A", "CONFIRM", NULL},
-						0, screen, 1);
-}
-
 static int GameList_handleInput(unsigned long now, int currentScreen,
 								int show_setting) {
 	int selected = top->selected;
@@ -193,17 +171,17 @@ static int GameList_handleInput(unsigned long now, int currentScreen,
 
 	if (PAD_tappedMenu(now)) {
 		currentScreen = SCREEN_QUICKMENU;
-		dirty = 1;
+		dirty = true;
 		folderbgchanged = 1;
 		if (!HAS_POWER_BUTTON && !simple_mode)
 			PWR_enableSleep();
 		return currentScreen;
-	} else if (PAD_tappedSelect(now) && confirm_shortcut_action == 0) {
+	} else if (PAD_tappedSelect(now) && confirm_shortcut_action == SHORTCUT_NONE) {
 		currentScreen = SCREEN_GAMESWITCHER;
 		GameSwitcher_resetSelection();
-		dirty = 1;
+		dirty = true;
 		return currentScreen;
-	} else if (total > 0 && confirm_shortcut_action == 0) {
+	} else if (total > 0 && confirm_shortcut_action == SHORTCUT_NONE) {
 		if (PAD_justRepeated(BTN_UP)) {
 			if (selected == 0 && !PAD_justPressed(BTN_UP)) {
 			} else {
@@ -260,7 +238,7 @@ static int GameList_handleInput(unsigned long now, int currentScreen,
 		}
 	}
 
-	if (confirm_shortcut_action == 0 && PAD_justRepeated(BTN_L1) &&
+	if (confirm_shortcut_action == SHORTCUT_NONE && PAD_justRepeated(BTN_L1) &&
 		!PAD_isPressed(BTN_R1) &&
 		!PWR_ignoreSettingInput(BTN_L1, show_setting)) { // previous alpha
 		Entry* entry = top->entries->items[selected];
@@ -275,7 +253,7 @@ static int GameList_handleInput(unsigned long now, int currentScreen,
 				top->start = top->end - MAIN_ROW_COUNT;
 			}
 		}
-	} else if (confirm_shortcut_action == 0 && PAD_justRepeated(BTN_R1) &&
+	} else if (confirm_shortcut_action == SHORTCUT_NONE && PAD_justRepeated(BTN_R1) &&
 			   !PAD_isPressed(BTN_L1) &&
 			   !PWR_ignoreSettingInput(BTN_R1, show_setting)) { // next alpha
 		Entry* entry = top->entries->items[selected];
@@ -294,7 +272,7 @@ static int GameList_handleInput(unsigned long now, int currentScreen,
 
 	if (selected != top->selected) {
 		top->selected = selected;
-		dirty = 1;
+		dirty = true;
 	}
 
 	Entry* entry = top->entries->items[top->selected];
@@ -303,11 +281,11 @@ static int GameList_handleInput(unsigned long now, int currentScreen,
 		readyResume(entry);
 
 	// Handle confirmation dialog for shortcuts
-	if (confirm_shortcut_action > 0) {
+	if (confirm_shortcut_action != SHORTCUT_NONE) {
 		if (PAD_justPressed(BTN_A)) {
 			Shortcuts_confirmAction(confirm_shortcut_action,
 									confirm_shortcut_entry);
-			confirm_shortcut_action = 0;
+			confirm_shortcut_action = SHORTCUT_NONE;
 			confirm_shortcut_entry = NULL;
 
 			// Refresh root directory to show updated shortcuts
@@ -322,16 +300,16 @@ static int GameList_handleInput(unsigned long now, int currentScreen,
 					root->entries->count > 0 ? root->entries->count - 1 : 0;
 			}
 
-			dirty = 1;
+			dirty = true;
 		} else if (PAD_justPressed(BTN_B)) {
-			confirm_shortcut_action = 0;
+			confirm_shortcut_action = SHORTCUT_NONE;
 			confirm_shortcut_entry = NULL;
-			dirty = 1;
+			dirty = true;
 		}
 	} else if (total > 0 && resume.can_resume && PAD_justReleased(BTN_RESUME)) {
-		resume.should_resume = 1;
+		resume.should_resume = true;
 		Entry_open(entry);
-		dirty = 1;
+		dirty = true;
 	}
 	// Y to add/remove shortcut (only in Tools folder or console directory)
 	else if (total > 0 &&
@@ -339,25 +317,25 @@ static int GameList_handleInput(unsigned long now, int currentScreen,
 			  Shortcuts_isInConsoleDir(top->path)) &&
 			 canPinEntry(entry) && PAD_justReleased(BTN_Y)) {
 		if (Shortcuts_exists(entry->path + strlen(SDCARD_PATH))) {
-			confirm_shortcut_action = 2; // remove
+			confirm_shortcut_action = SHORTCUT_REMOVE;
 		} else {
-			confirm_shortcut_action = 1; // add
+			confirm_shortcut_action = SHORTCUT_ADD;
 		}
 		confirm_shortcut_entry = entry;
-		dirty = 1;
+		dirty = true;
 	} else if (total > 0 && PAD_justPressed(BTN_A)) {
 		Entry_open(entry);
 		if (entry->type == ENTRY_DIR && !startgame) {
 			animationdirection = SLIDE_LEFT;
 		}
-		dirty = 1;
+		dirty = true;
 
 		if (top->entries->count > 0)
 			readyResume(top->entries->items[top->selected]);
 	} else if (PAD_justPressed(BTN_B) && stack->count > 1) {
 		closeDirectory();
 		animationdirection = SLIDE_RIGHT;
-		dirty = 1;
+		dirty = true;
 
 		if (top->entries->count > 0)
 			readyResume(top->entries->items[top->selected]);
@@ -406,7 +384,7 @@ int main(int argc, char* argv[]) {
 	GFX_clearLayers(LAYER_ALL);
 	GFX_clear(screen);
 
-	int show_setting = 0; // 1=brightness,2=volume
+	int show_setting = INDICATOR_NONE;
 	int was_online = PWR_isOnline();
 	int had_bt = PLAT_btIsConnected();
 
@@ -416,9 +394,6 @@ int main(int argc, char* argv[]) {
 	}
 
 	int selected_row = top->selected - top->start;
-	float targetY;
-	float previousY;
-	int is_scrolling = 0;
 	bool list_show_entry_names = true;
 
 	char folderBgPath[1024] = {0};
@@ -429,16 +404,6 @@ int main(int argc, char* argv[]) {
 		screen->format->format);
 	if (blackBG)
 		SDL_FillRect(blackBG, NULL, SDL_MapRGBA(screen->format, 0, 0, 0, 255));
-
-	SDL_LockMutex(animMutex);
-	globalpill = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, screen->w,
-												SCALE1(PILL_SIZE), FIXED_DEPTH,
-												screen->format->format);
-	globalText = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, screen->w,
-												SCALE1(PILL_SIZE), FIXED_DEPTH,
-												screen->format->format);
-	static int globallpillW = 0;
-	SDL_UnlockMutex(animMutex);
 
 	while (!quit) {
 		GFX_startFrame();
@@ -452,20 +417,24 @@ int main(int argc, char* argv[]) {
 
 		int is_online = PWR_isOnline();
 		if (was_online != is_online)
-			dirty = 1;
+			dirty = true;
 		was_online = is_online;
 
 		int has_bt = PLAT_btIsConnected();
 		if (had_bt != has_bt)
-			dirty = 1;
+			dirty = true;
 		had_bt = has_bt;
+
+		// Check if a thumbnail finished loading asynchronously
+		if (thumbCheckAsyncLoaded())
+			dirty = true;
 
 		int gsanimdir = ANIM_NONE;
 
 		if (currentScreen == SCREEN_QUICKMENU) {
 			QuickMenuResult qmr = QuickMenu_handleInput(now);
 			if (qmr.dirty)
-				dirty = 1;
+				dirty = true;
 			if (qmr.folderbgchanged)
 				folderbgchanged = 1;
 			if (qmr.screen != SCREEN_QUICKMENU)
@@ -473,11 +442,11 @@ int main(int argc, char* argv[]) {
 		} else if (currentScreen == SCREEN_GAMESWITCHER) {
 			GameSwitcherResult gsr = GameSwitcher_handleInput(now);
 			if (gsr.dirty)
-				dirty = 1;
+				dirty = true;
 			if (gsr.folderbgchanged)
 				folderbgchanged = 1;
 			if (gsr.startgame)
-				startgame = 1;
+				startgame = true;
 			if (gsr.screen != SCREEN_GAMESWITCHER)
 				currentScreen = gsr.screen;
 			gsanimdir = gsr.gsanimdir;
@@ -494,14 +463,9 @@ int main(int argc, char* argv[]) {
 
 		if (dirty) {
 			SDL_Surface* tmpOldScreen = NULL;
-			// NOTE:22 This causes slowdown when CFG_getMenuTransitions is set to
-			// false because animationdirection turns > 0 somewhere but is never set
-			// back to 0 and so this code runs on every action, will fix later
 			if (animationdirection != ANIM_NONE ||
 				(lastScreen == SCREEN_GAMELIST &&
 				 currentScreen == SCREEN_GAMESWITCHER)) {
-				if (tmpOldScreen)
-					SDL_FreeSurface(tmpOldScreen);
 				tmpOldScreen = GFX_captureRendererToSurface();
 				if (tmpOldScreen)
 					SDL_SetSurfaceBlendMode(tmpOldScreen, SDL_BLENDMODE_BLEND);
@@ -576,13 +540,11 @@ int main(int argc, char* argv[]) {
 						char thumbpath[1024];
 						snprintf(thumbpath, sizeof(thumbpath), "%s/.media/%s.png", rompath,
 								 res_copy);
-						had_thumb = 0;
-						startLoadThumb(thumbpath, onThumbLoaded);
+						had_thumb = startLoadThumb(thumbpath);
 						int max_w = (int)(screen->w - (screen->w * CFG_getGameArtWidth()));
-						if (exists(thumbpath)) {
+						if (had_thumb)
 							ox = (int)(max_w)-SCALE1(BUTTON_MARGIN * 5);
-							had_thumb = 1;
-						} else
+						else
 							ox = screen->w;
 					}
 				}
@@ -612,7 +574,7 @@ int main(int argc, char* argv[]) {
 					if (stack->count > 1) {
 						GFX_blitButtonGroup((char*[]){"B", "BACK", NULL}, 0, screen, 1);
 					}
-				} else if (confirm_shortcut_action == 0) {
+				} else if (confirm_shortcut_action == SHORTCUT_NONE) {
 					if (stack->count > 1) {
 						GFX_blitButtonGroup((char*[]){"B", "BACK", "A", "OPEN", NULL}, 1,
 											screen, 1);
@@ -621,112 +583,47 @@ int main(int argc, char* argv[]) {
 					}
 				}
 
-				// list
 				if (total > 0) {
 					selected_row = top->selected - top->start;
-					previousY = previous_row * PILL_SIZE;
-					targetY = selected_row * PILL_SIZE;
+
 					for (int i = top->start, j = 0; i < top->end; i++, j++) {
 						Entry* entry = top->entries->items[i];
 						char* entry_name = entry->name;
 						char* entry_unique = entry->unique;
+						bool row_is_selected = (j == selected_row);
+						bool row_is_top = (i == top->start);
+
+						// Calculate per-item available width (thumbnail-aware)
 						int available_width =
 							MAX(0, (had_thumb ? ox + SCALE1(BUTTON_MARGIN)
 											  : screen->w - SCALE1(BUTTON_MARGIN)) -
 									   SCALE1(PADDING * 2));
-						bool row_is_selected = (j == selected_row);
-						bool row_is_top = (i == top->start);
-						bool row_has_moved = (previous_row != selected_row ||
-											  previous_depth != stack->count);
-						if (row_is_top && !(had_thumb))
+						if (row_is_top && !had_thumb)
 							available_width -= ow;
 
+						// Prepare display text: prefer unique name, fall back to entry name
 						trimSortingMeta(&entry_name);
-						if (entry_unique) // Only render if a unique name exists
+						if (entry_unique)
 							trimSortingMeta(&entry_unique);
+						char* display_text = entry_unique ? entry_unique : entry_name;
 
-						char display_name[256];
-						int text_width = GFX_getTextWidth(
-							font.large, entry_unique ? entry_unique : entry_name,
-							display_name, available_width, SCALE1(BUTTON_PADDING * 2));
-						int max_width = MIN(available_width, text_width);
-
-						// This spaghetti is preventing white text on white pill when
-						// volume/color temp is shown, dont ask me why. This all needs to
-						// get tossed out and redone properly later.
-						SDL_Color text_color = uintToColour(THEME_COLOR4_255);
-						int notext = 0;
-						if (!row_has_moved && row_is_selected) {
-							text_color = uintToColour(THEME_COLOR5_255);
-							notext = 1;
-						}
-
-						SDL_LockMutex(fontMutex);
-						SDL_Surface* text =
-							TTF_RenderUTF8_Blended(font.large, entry_name, text_color);
-						SDL_Surface* text_unique = TTF_RenderUTF8_Blended(
-							font.large, display_name, COLOR_DARK_TEXT);
-						SDL_UnlockMutex(fontMutex);
-						if (!text || !text_unique) {
-							if (text)
-								SDL_FreeSurface(text);
-							if (text_unique)
-								SDL_FreeSurface(text_unique);
-							continue;
-						}
-						// TODO: Use actual font metrics to center, this only works in
-						// simple cases
-						const int text_offset_y = (SCALE1(PILL_SIZE) - text->h + 1) >> 1;
-						if (row_is_selected) {
-							is_scrolling =
-								list_show_entry_names &&
-								GFX_textShouldScroll(font.large, display_name,
-													 max_width - SCALE1(BUTTON_PADDING * 2),
-													 fontMutex);
-							GFX_resetScrollText();
-							bool should_animate = previous_depth == stack->count;
-							SDL_LockMutex(animMutex);
-							if (globalpill) {
-								SDL_FreeSurface(globalpill);
-								globalpill = NULL;
-							}
-							globalpill = SDL_CreateRGBSurfaceWithFormat(
-								SDL_SWSURFACE, max_width, SCALE1(PILL_SIZE), FIXED_DEPTH,
-								screen->format->format);
-							GFX_blitPillDark(ASSET_WHITE_PILL, globalpill,
-											 &(SDL_Rect){0, 0, max_width, SCALE1(PILL_SIZE)});
-							globallpillW = max_width;
-							SDL_UnlockMutex(animMutex);
-							updatePillTextSurface(entry_name, max_width,
-												  uintToColour(THEME_COLOR5_255));
-							AnimTask* task = malloc(sizeof(AnimTask));
-							if (task) {
-								task->startX = SCALE1(BUTTON_MARGIN);
-								task->startY = SCALE1(previousY + PADDING);
-								task->targetX = SCALE1(BUTTON_MARGIN);
-								task->targetY = SCALE1(targetY + PADDING);
-								task->targetTextY = SCALE1(PADDING + targetY) + text_offset_y;
-								pilltargetTextY = screen->h;
-								task->move_w = max_width;
-								task->move_h = SCALE1(PILL_SIZE);
-								task->frames =
-									should_animate && CFG_getMenuAnimations() ? 3 : 1;
-								task->entry_name = strdup(notext ? " " : entry_name);
-								animPill(task);
-							}
-						}
-						SDL_Rect text_rect = {0, 0, max_width - SCALE1(BUTTON_PADDING * 2),
-											  text->h};
-						SDL_Rect dest_rect = {SCALE1(BUTTON_MARGIN + BUTTON_PADDING),
-											  SCALE1(PADDING + (j * PILL_SIZE)) +
-												  text_offset_y};
+						int y = SCALE1(PADDING + j * PILL_SIZE);
 
 						if (list_show_entry_names) {
-							SDL_BlitSurface(text_unique, &text_rect, screen, &dest_rect);
-							SDL_BlitSurface(text, &text_rect, screen, &dest_rect);
+							char truncated[256];
+							ListLayout item_layout = {
+								.item_h = SCALE1(PILL_SIZE),
+								.max_width = available_width,
+							};
+							ListItemPos pos = UI_renderListItemPill(
+								screen, &item_layout, font.large,
+								display_text, truncated, y, row_is_selected, 0);
+							int text_width = pos.pill_width - SCALE1(BUTTON_PADDING * 2);
+							UI_renderListItemText(screen,
+												  row_is_selected ? &list_scroll : NULL,
+												  display_text, font.large,
+												  pos.text_x, pos.text_y, text_width, row_is_selected);
 						}
-						SDL_FreeSurface(text_unique); // Free after use
-						SDL_FreeSurface(text);		  // Free after use
 					}
 					if (lastScreen == SCREEN_GAMESWITCHER) {
 						SDL_Surface* gsSur = GameSwitcher_getSurface();
@@ -748,18 +645,15 @@ int main(int argc, char* argv[]) {
 												  LAYER_THUMBNAIL);
 					}
 
-					previous_row = selected_row;
-					previous_depth = stack->count;
 				} else {
-					// TODO: for some reason screen's dimensions end up being 0x0 in
-					// GFX_blitMessage...
-					GFX_blitMessage(font.large, "Empty folder", screen,
-									&(SDL_Rect){0, 0, screen->w, screen->h});
+					UI_renderCenteredMessage(screen, "Empty folder");
 				}
 
 				// Render confirmation dialog for shortcuts
-				if (confirm_shortcut_action > 0 && confirm_shortcut_entry) {
-					renderConfirmationDialog();
+				if (confirm_shortcut_action != SHORTCUT_NONE && confirm_shortcut_entry) {
+					char* title =
+						confirm_shortcut_action == SHORTCUT_ADD ? "Pin shortcut?" : "Unpin shortcut?";
+					UI_renderConfirmDialog(screen, title, confirm_shortcut_entry->name);
 				}
 
 				lastScreen = SCREEN_GAMELIST;
@@ -795,17 +689,10 @@ int main(int argc, char* argv[]) {
 				updateBackgroundLayer();
 			} else if (lastScreen == SCREEN_GAMELIST) {
 				updateBackgroundLayer();
-				renderThumbnail(0);
+				renderThumbnail(1);
 
 				GFX_clearLayers(LAYER_TRANSITION);
 				GFX_clearLayers(LAYER_SCROLLTEXT);
-
-				SDL_LockMutex(animMutex);
-				if (list_show_entry_names && globalpill) {
-					GFX_drawOnLayer(globalpill, pillRect.x, pillRect.y, globallpillW,
-									globalpill->h, 1.0f, 0, LAYER_TRANSITION);
-				}
-				SDL_UnlockMutex(animMutex);
 			}
 			if (!startgame) // dont flip if game gonna start
 				GFX_flip(screen);
@@ -813,99 +700,42 @@ int main(int argc, char* argv[]) {
 			if (tmpOldScreen)
 				SDL_FreeSurface(tmpOldScreen);
 
-			dirty = 0;
-		} else if (getAnimationDraw() || folderbgchanged || thumbchanged ||
-				   is_scrolling) {
-			// honestly this whole thing is here only for the scrolling text, I set it
-			// now to run this at 30fps which is enough for scrolling text, should
-			// move this to seperate animation function eventually
-			static char cached_display_name[256] = "";
+			dirty = false;
+		} else if (folderbgchanged || thumbchanged ||
+				   ScrollText_isScrolling(&list_scroll) || ScrollText_needsRender(&list_scroll)) {
 			updateBackgroundLayer();
 			renderThumbnail(1);
-			SDL_LockMutex(animMutex);
-			if (getAnimationDraw()) {
-				GFX_clearLayers(LAYER_TRANSITION);
-				if (list_show_entry_names && globalpill)
-					GFX_drawOnLayer(globalpill, pillRect.x, pillRect.y, globallpillW,
-									globalpill->h, 1.0f, 0, LAYER_TRANSITION);
-				setAnimationDraw(0);
-			}
-			SDL_UnlockMutex(animMutex);
 			if (currentScreen != SCREEN_GAMESWITCHER &&
 				currentScreen != SCREEN_QUICKMENU) {
-				// Skip scrolling text when confirmation dialog is shown
-				if (is_scrolling && pillanimdone && currentAnimQueueSize < 1 &&
-					confirm_shortcut_action == 0) {
-					int ow = GFX_blitHardwareGroup(screen, show_setting);
-					Entry* entry = top->entries->items[top->selected];
-					trimSortingMeta(&entry->name);
-					char* entry_text = entry->name;
-					if (entry->unique) {
-						trimSortingMeta(&entry->unique);
-						entry_text = entry->unique;
-					}
-
-					int available_width =
-						(had_thumb ? ox + SCALE1(BUTTON_MARGIN)
-								   : screen->w - SCALE1(BUTTON_MARGIN)) -
-						SCALE1(PADDING * 2);
-					if (top->selected == top->start && !had_thumb)
-						available_width -= ow;
-
-					SDL_Color text_color = uintToColour(THEME_COLOR5_255);
-
-					int text_width =
-						GFX_getTextWidth(font.large, entry_text, cached_display_name,
-										 available_width, SCALE1(BUTTON_PADDING * 2));
-					int max_width = MIN(available_width, text_width);
-					int text_offset_y =
-						(SCALE1(PILL_SIZE) - TTF_FontHeight(font.large) + 1) >> 1;
-
+				if (confirm_shortcut_action != SHORTCUT_NONE) {
 					GFX_clearLayers(LAYER_SCROLLTEXT);
-					if (list_show_entry_names) {
-						GFX_scrollTextTexture(
-							font.large, entry_text, SCALE1(BUTTON_MARGIN + BUTTON_PADDING),
-							SCALE1(PADDING + previous_row * PILL_SIZE) + text_offset_y,
-							max_width - SCALE1(BUTTON_PADDING * 2), 0, text_color, 1,
-							fontMutex // Thread-safe font access
-						);
-					}
 				} else {
-					GFX_clearLayers(LAYER_TRANSITION);
-					GFX_clearLayers(LAYER_SCROLLTEXT);
-					SDL_LockMutex(animMutex);
-					if (list_show_entry_names && globalpill) {
-						GFX_drawOnLayer(globalpill, pillRect.x, pillRect.y, globallpillW,
-										globalpill->h, 1.0f, 0, LAYER_TRANSITION);
-						if (globalText)
-							GFX_drawOnLayer(globalText,
-											SCALE1(BUTTON_MARGIN + BUTTON_PADDING),
-											pilltargetTextY, globalText->w, globalText->h,
-											1.0f, 0, LAYER_SCROLLTEXT);
+					ScrollText_activateAfterDelay(&list_scroll);
+					if (ScrollText_isScrolling(&list_scroll)) {
+						ScrollText_animateOnly(&list_scroll);
 					}
-					SDL_UnlockMutex(animMutex);
-					PLAT_GPU_Flip();
 				}
 			} else {
 				SDL_Delay(16);
 			}
-			dirty = 0;
+			// Flush layer changes (e.g. new thumbnail) to screen
+			if (getNeedDraw()) {
+				PLAT_GPU_Flip();
+				setNeedDraw(0);
+			}
+			dirty = false;
 		} else {
 			// want to draw only if needed
 			SDL_LockMutex(bgqueueMutex);
 			SDL_LockMutex(thumbqueueMutex);
-			SDL_LockMutex(animqueueMutex);
 			if (getNeedDraw()) {
 				PLAT_GPU_Flip();
 				setNeedDraw(0);
 			} else {
-				// TODO: Why 17? Seems like an odd choice for 60fps, it almost
-				// guarantees we miss at least one frame. This should either be
-				// 16(.66666667) or make proper use of SDL_Ticks to only wait for the
-				// next render pass.
-				SDL_Delay(17);
+				unsigned long elapsed = SDL_GetTicks() - now;
+				if (elapsed < 16)
+					SDL_Delay(16 - elapsed);
 			}
-			SDL_UnlockMutex(animqueueMutex);
 			SDL_UnlockMutex(thumbqueueMutex);
 			SDL_UnlockMutex(bgqueueMutex);
 		}
@@ -931,13 +761,19 @@ int main(int argc, char* argv[]) {
 			LOG_info("restarting after HDMI change... (%s)\n", entry->path);
 			saveLast(entry->path); // NOTE: doesn't work in Recents (by design)
 			sleep(4);
-			quit = 1;
+			quit = true;
 		}
 	}
 
 	Menu_quit();
 	PWR_quit();
 	PAD_quit();
+
+	// Cleanup scroll text state
+	if (list_scroll.cached_scroll_surface) {
+		SDL_FreeSurface(list_scroll.cached_scroll_surface);
+		list_scroll.cached_scroll_surface = NULL;
+	}
 
 	// Cleanup worker threads and their synchronization primitives
 	cleanupImageLoaderPool();

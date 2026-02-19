@@ -1203,8 +1203,10 @@ int PLAT_textShouldScroll(TTF_Font* font, const char* in_name, int max_width, SD
 	}
 }
 static int text_offset = 0;
+static bool scroll_initial_pause = true;
 void PLAT_resetScrollText() {
 	text_offset = 0;
+	scroll_initial_pause = true;
 }
 void PLAT_scrollTextTexture(
 	TTF_Font* font,
@@ -1270,8 +1272,12 @@ void PLAT_scrollTextTexture(
 	// Scroll only if text is wider than clip width
 	if (single_width > w) {
 		frame_counter++;
-		if (frame_counter >= 0) {
-			text_offset += 2;
+		// Initial pause: wait 0.5s before first scroll
+		if (scroll_initial_pause && frame_counter < 30) {
+			// Hold at start
+		} else {
+			scroll_initial_pause = false;
+			text_offset += 1;
 			if (text_offset >= single_width + padding) {
 				text_offset = 0;
 			}
@@ -1279,6 +1285,7 @@ void PLAT_scrollTextTexture(
 		}
 	} else {
 		text_offset = 0;
+		frame_counter = 0;
 	}
 
 	PLAT_GPU_Flip();
