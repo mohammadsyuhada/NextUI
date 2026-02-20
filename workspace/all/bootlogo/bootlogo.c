@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
 				SDL_BlitSurface(image, NULL, screen, &image_rect);
 			}
 
-			UI_renderButtonHintBar(screen, (char*[]){"A", "SET", "B", "BACK", NULL}, (char*[]){"L/R", "SCROLL", NULL});
+			UI_renderButtonHintBar(screen, (char*[]){"A", "SET", "B", "BACK", "L/R", "SCROLL", NULL});
 
 			GFX_flip(screen);
 			dirty = false;

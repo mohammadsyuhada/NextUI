@@ -1,13 +1,9 @@
 #!/bin/sh
 cd $(dirname "$0")
-# chmod a+w /sys/class/led_anim/* >> launch.log
 
 TARGET_PATH="/mnt/SDCARD/.userdata/shared/ledsettings.txt"
 if [ ! -f "$TARGET_PATH" ]; then
-    cp ./ledsettings.txt /mnt/SDCARD/.userdata/shared/ledsettings.txt >> launch.log
-    echo "File copied to $TARGET_PATH" >> launch.log
-else
-    echo "File already exists in TARGET_PATH" >> launch.log
+    cp ./ledsettings.txt "$TARGET_PATH"
 fi
 
-./ledcontrol.elf > ledcontrol.log 2>&1
+./ledcontrol.elf &> "$LOGS_PATH/ledcontrol.txt"

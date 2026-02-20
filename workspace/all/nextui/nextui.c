@@ -485,7 +485,7 @@ int main(int argc, char* argv[]) {
 
 			// render top menu bar
 			const char* menu_title = stack->count > 1 ? top->name : "NextUI Redux";
-			int ow = UI_renderMenuBar(screen, menu_title, show_setting);
+			int ow = UI_renderMenuBar(screen, menu_title);
 			if (currentScreen == SCREEN_QUICKMENU) {
 				QuickMenu_render(lastScreen, show_setting, ow,
 								 folderBgPath, sizeof(folderBgPath));
@@ -557,15 +557,12 @@ int main(int argc, char* argv[]) {
 					char* right_pairs[16] = {NULL};
 					int p = 0;
 
-					// hardware hints or pin action
-					if (show_setting && !GetHDMI()) {
-						char** hw = GFX_getHardwareHintPairs(show_setting);
-						for (int i = 0; hw[i]; i++)
-							right_pairs[p++] = hw[i];
-					} else if (total > 0 &&
-							   (Shortcuts_isInToolsFolder(top->path) ||
-								Shortcuts_isInConsoleDir(top->path)) &&
-							   canPinEntry(entry)) {
+					// pin action (hardware hints override this when volume is pressed)
+					if (!(show_setting && !GetHDMI()) && total > 0 &&
+						!GetHDMI() &&
+						(Shortcuts_isInToolsFolder(top->path) ||
+						 Shortcuts_isInConsoleDir(top->path)) &&
+						canPinEntry(entry)) {
 						right_pairs[p++] = "Y";
 						right_pairs[p++] = Shortcuts_exists(entry->path + strlen(SDCARD_PATH))
 											   ? "UNPIN"
@@ -598,7 +595,7 @@ int main(int argc, char* argv[]) {
 					}
 
 					if (right_pairs[0])
-						UI_renderButtonHintBar(screen, right_pairs, NULL);
+						UI_renderButtonHintBar(screen, right_pairs);
 				}
 
 				if (total > 0) {

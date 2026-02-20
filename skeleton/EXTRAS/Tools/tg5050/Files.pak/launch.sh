@@ -5,4 +5,4 @@ cd $(dirname "$0")
 HOME="$SDCARD_PATH"
 CFG="tg5050.cfg"
 
-./NextCommander --config $CFG
+./NextCommander --config $CFG &> "$LOGS_PATH/files.txt"

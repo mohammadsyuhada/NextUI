@@ -134,13 +134,9 @@ void GameSwitcher_render(int lastScreen, SDL_Surface* blackBG,
 		}
 
 		if (resume.can_resume)
-			UI_renderButtonHintBar(screen, (char*[]){"Y", "REMOVE", "A", "RESUME", NULL}, (char*[]){"B", "BACK", NULL});
+			UI_renderButtonHintBar(screen, (char*[]){"Y", "REMOVE", "A", "RESUME", "B", "BACK", NULL});
 		else
-			UI_renderButtonHintBar(
-				screen,
-				(char*[]){"Y", "REMOVE", "A", "RESUME", NULL},
-				(char*[]){BTN_SLEEP == BTN_POWER ? "POWER" : "MENU", "SLEEP",
-						  NULL});
+			UI_renderButtonHintBar(screen, (char*[]){"Y", "REMOVE", "A", "RESUME", BTN_SLEEP == BTN_POWER ? "POWER" : "MENU", "SLEEP", NULL});
 
 		if (resume.has_preview) {
 			// lotta memory churn here
@@ -318,7 +314,7 @@ void GameSwitcher_render(int lastScreen, SDL_Surface* blackBG,
 	} else {
 		SDL_FillRect(screen, &(SDL_Rect){0, 0, screen->w, screen->h}, 0);
 		UI_renderCenteredMessage(screen, "No Recents");
-		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, NULL);
+		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL});
 	}
 
 	GFX_flipHidden();

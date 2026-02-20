@@ -266,10 +266,7 @@ int main(int argc, char* argv[]) {
 
 			GFX_blitHardwareGroup(screen, show_setting);
 
-			if (show_setting)
-				UI_renderButtonHintBar(screen, (char*[]){"B", "CANCEL", "A", "SET", NULL}, GFX_getHardwareHintPairs(show_setting));
-			else
-				UI_renderButtonHintBar(screen, (char*[]){"B", "CANCEL", "A", "SET", NULL}, (char*[]){"SELECT", show_24hour ? "12 HOUR" : "24 HOUR", NULL});
+			UI_renderButtonHintBar(screen, (char*[]){"B", "CANCEL", "A", "SET", "SELECT", show_24hour ? "12 HOUR" : "24 HOUR", NULL});
 
 			// 376 or 446 (@2x)
 			// 188 or 223 (@1x)

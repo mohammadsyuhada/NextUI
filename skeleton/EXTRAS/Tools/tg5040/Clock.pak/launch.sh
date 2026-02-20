@@ -1,4 +1,4 @@
 #!/bin/sh
 
 cd $(dirname "$0")
-./clock.elf # &> ./log.txt
+./clock.elf &> "$LOGS_PATH/clock.txt"

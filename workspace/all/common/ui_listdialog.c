@@ -178,7 +178,7 @@ void ListDialog_render(SDL_Surface* screen) {
 
 	int hw = screen->w;
 
-	UI_renderMenuBar(screen, dialog_title, 0);
+	UI_renderMenuBar(screen, dialog_title);
 
 	// Status text (if set and no items)
 	if (dialog_status[0] && dialog_count == 0) {
@@ -191,12 +191,12 @@ void ListDialog_render(SDL_Surface* screen) {
 							&(SDL_Rect){status_x, status_y, 0, 0});
 			SDL_FreeSurface(status_surf);
 		}
-		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, NULL);
+		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL});
 		return;
 	}
 
 	if (dialog_count == 0) {
-		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, NULL);
+		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL});
 		return;
 	}
 
@@ -223,7 +223,7 @@ void ListDialog_render(SDL_Surface* screen) {
 	}
 
 	UI_renderScrollIndicators(screen, dialog_scroll, layout.items_per_page, dialog_count);
-	UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "SELECT", NULL}, NULL);
+	UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "SELECT", NULL});
 }
 
 void ListDialog_quit(void) {

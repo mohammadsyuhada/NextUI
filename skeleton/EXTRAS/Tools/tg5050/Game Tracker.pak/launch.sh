@@ -1,4 +1,4 @@
 #!/bin/sh
 
 cd "$(dirname "$0")"
-./gametime.elf # &> ./log.txt
+./gametime.elf &> "$LOGS_PATH/gametime.txt"

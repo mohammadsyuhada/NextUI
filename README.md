@@ -40,7 +40,8 @@ Changes:
 - Fix wrong wifi/bluetooth state icon in quick menu
 - Added semi transparent progress overlay for all blocking actions
 - Added confirmation dialog on action the require it
-- Rewrite settings app in C with UI redesign 
+- Rewrite Settings app in C with UI redesign 
+- Rewrite Updater app in C with UI redesign 
 
 New Features:
 - Redesigned UI. It is now consistent throughout the system.

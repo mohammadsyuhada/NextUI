@@ -83,7 +83,10 @@ void UI_renderCenteredMessage(SDL_Surface* dst, const char* message) {
 	GFX_blitMessage(font.large, (char*)message, dst, &fullscreen_rect);
 }
 
-int UI_renderButtonHintBar(SDL_Surface* dst, char** right_pairs, char** left_pairs) {
+int UI_renderButtonHintBar(SDL_Surface* dst, char** pairs) {
+	int show_setting = PWR_getShowSetting();
+	char** hw_pairs = show_setting ? GFX_getHardwareHintPairs(show_setting) : NULL;
+
 	struct Hint {
 		char* hint;
 		char* button;
@@ -94,8 +97,8 @@ int UI_renderButtonHintBar(SDL_Surface* dst, char** right_pairs, char** left_pai
 	int count = 0;
 	int total_w = 0;
 
-	// Parse left pairs then right pairs sequentially
-	char** groups[] = {left_pairs, right_pairs};
+	// Parse hardware hints first, then caller pairs
+	char** groups[] = {hw_pairs, pairs};
 	for (int g = 0; g < 2; g++) {
 		if (!groups[g])
 			continue;
@@ -195,7 +198,7 @@ void UI_renderLoadingOverlay(SDL_Surface* dst, const char* title, const char* su
 	}
 }
 
-int UI_renderMenuBar(SDL_Surface* screen, const char* title, int show_setting) {
+int UI_renderMenuBar(SDL_Surface* screen, const char* title) {
 	// Semi-transparent bar background (cached between calls)
 	static SDL_Surface* menu_bar = NULL;
 	int bar_h = SCALE1(BUTTON_SIZE) + SCALE1(BUTTON_MARGIN * 2);
@@ -212,7 +215,7 @@ int UI_renderMenuBar(SDL_Surface* screen, const char* title, int show_setting) {
 	SDL_BlitSurface(menu_bar, NULL, screen, &(SDL_Rect){0, 0});
 
 	// Hardware group (right side)
-	int ow = GFX_blitHardwareGroup(screen, show_setting);
+	int ow = GFX_blitHardwareGroup(screen, PWR_getShowSetting());
 
 	// Title text (left side, no pill)
 	if (title && title[0]) {

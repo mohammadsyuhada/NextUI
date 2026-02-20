@@ -1,4 +1,4 @@
 #!/bin/sh
 
 cd $(dirname "$0")
-./battery.elf # &> ./log.txt
+./battery.elf &> "$LOGS_PATH/battery.txt"

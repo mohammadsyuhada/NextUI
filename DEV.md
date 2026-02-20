@@ -82,6 +82,9 @@ docker run --rm -v $(pwd)/workspace:/root/workspace ghcr.io/loveretro/tg5040-too
 
 # settings
 docker run --rm -v $(pwd)/workspace:/root/workspace ghcr.io/loveretro/tg5040-toolchain:latest /bin/bash -c 'source ~/.bashrc && cd /root/workspace/all/settings && make PLATFORM=tg5040' && adb push workspace/all/settings/build/tg5040/settings.elf /mnt/SDCARD/Tools/tg5040/Settings.pak/
+
+# updater
+docker run --rm -v $(pwd)/workspace:/root/workspace ghcr.io/loveretro/tg5040-toolchain:latest /bin/bash -c 'source ~/.bashrc && cd /root/workspace/all/updater && make PLATFORM=tg5040' && adb push workspace/all/updater/build/tg5040/updater.elf /mnt/SDCARD/Tools/tg5040/Updater.pak/
 ```
 
 ## Component Locations

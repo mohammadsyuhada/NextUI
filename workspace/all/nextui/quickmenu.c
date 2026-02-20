@@ -259,17 +259,10 @@ void QuickMenu_render(int lastScreen, int show_setting, int ow,
 	bool show_connect_hint = (qm_row == QM_ROW_TOGGLES && current &&
 							  (current->quickId == QUICK_WIFI || current->quickId == QUICK_BLUETOOTH));
 
-	if (show_setting && !GetHDMI()) {
-		if (show_connect_hint)
-			UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "TOGGLE", "X", "CONNECT", NULL}, GFX_getHardwareHintPairs(show_setting));
-		else
-			UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "OPEN", NULL}, GFX_getHardwareHintPairs(show_setting));
-	} else {
-		if (show_connect_hint)
-			UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "TOGGLE", "X", "CONNECT", NULL}, NULL);
-		else
-			UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "OPEN", NULL}, NULL);
-	}
+	if (show_connect_hint)
+		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "TOGGLE", "X", "CONNECT", NULL});
+	else
+		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "OPEN", NULL});
 
 	if (CFG_getShowQuickswitcherUI()) {
 #define MENU_ITEM_SIZE 72	 // item size, top line

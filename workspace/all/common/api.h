@@ -353,7 +353,6 @@ void GFX_blitButton(char* hint, char* button, SDL_Surface* dst, SDL_Rect* dst_re
 void GFX_blitMessage(TTF_Font* font, char* msg, SDL_Surface* dst, SDL_Rect* dst_rect);
 
 int GFX_blitHardwareGroup(SDL_Surface* dst, int show_setting);
-void GFX_blitHardwareHints(SDL_Surface* dst, int show_setting);
 
 typedef enum {
 	INDICATOR_NONE = 0,
@@ -512,6 +511,7 @@ void PWR_init(void);
 void PWR_quit(void);
 
 int PWR_ignoreSettingInput(int btn, int show_setting);
+int PWR_getShowSetting(void);
 void PWR_update(bool* dirty, int* show_setting, PWR_callback_t before_sleep, PWR_callback_t after_sleep);
 void PWR_updateFrequency(int secs, int updateWifi);
 

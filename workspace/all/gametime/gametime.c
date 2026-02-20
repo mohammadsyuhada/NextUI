@@ -403,10 +403,7 @@ int main(int argc, char* argv[]) {
 
 			renderList(count, start, end, selected);
 
-			if (show_setting)
-				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, GFX_getHardwareHintPairs(show_setting));
-			else
-				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, (char*[]){"U/D", "SCROLL", NULL});
+			UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "U/D", "SCROLL", NULL});
 
 			GFX_flip(screen);
 			dirty = false;

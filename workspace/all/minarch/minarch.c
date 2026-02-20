@@ -6440,7 +6440,7 @@ static int Menu_messageWithFont(char* message, char** pairs, TTF_Font* f) {
 
 		GFX_clear(screen);
 		GFX_blitMessage(f, message, screen, &(SDL_Rect){SCALE1(PADDING), SCALE1(PADDING), screen->w - SCALE1(2 * PADDING), screen->h - SCALE1(PILL_SIZE + PADDING)});
-		UI_renderButtonHintBar(screen, pairs, NULL);
+		UI_renderButtonHintBar(screen, pairs);
 		GFX_flip(screen);
 		dirty = false;
 
@@ -7402,7 +7402,7 @@ static int OptionAchievements_showDetail(MenuList* list, int i) {
 
 			// Button hints - update based on current mute state
 			char* hints[] = {"X", is_muted ? "UNMUTE" : "MUTE", "B", "BACK", NULL};
-			UI_renderButtonHintBar(screen, hints, NULL);
+			UI_renderButtonHintBar(screen, hints);
 			GFX_flip(screen);
 			dirty = false;
 		}
@@ -7733,7 +7733,7 @@ static int OptionAchievements_openMenu(MenuList* list, int i) {
 
 			// Button hints at bottom with dynamic Y button text
 			char* hints[] = {"Y", ach_filter_locked_only ? "SHOW ALL" : "SHOW LOCKED", "X", "MUTE", NULL};
-			UI_renderButtonHintBar(screen, hints, NULL);
+			UI_renderButtonHintBar(screen, hints);
 
 			GFX_flip(screen);
 			dirty = false;
@@ -8733,10 +8733,7 @@ static void Menu_loop(void) {
 			SDL_BlitSurface(text, &(SDL_Rect){0, 0, max_width - SCALE1(BUTTON_PADDING * 2), text->h}, screen, &(SDL_Rect){SCALE1(PADDING + BUTTON_PADDING), SCALE1(PADDING + 4)});
 			SDL_FreeSurface(text);
 
-			if (show_setting && !GetHDMI())
-				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "OKAY", NULL}, GFX_getHardwareHintPairs(show_setting));
-			else
-				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "OKAY", NULL}, (char*[]){BTN_SLEEP == BTN_POWER ? "POWER" : "MENU", "SLEEP", NULL});
+			UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "OKAY", BTN_SLEEP == BTN_POWER ? "POWER" : "MENU", "SLEEP", NULL});
 
 			// list
 			oy = (((DEVICE_HEIGHT / FIXED_SCALE) - PADDING * 2) - (MENU_ITEM_COUNT * PILL_SIZE)) / 2;

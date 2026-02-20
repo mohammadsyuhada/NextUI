@@ -559,39 +559,39 @@ static void render_hints_for_page(SDL_Surface* screen, SettingsPage* page) {
 
 	if (!sel) {
 		char* right[] = {"B", back_label, NULL};
-		UI_renderButtonHintBar(screen, right, NULL);
+		UI_renderButtonHintBar(screen, right);
 		return;
 	}
 
 	if (page->is_list) {
 		char* right[] = {"B", back_label, "A", "OPEN", NULL};
-		UI_renderButtonHintBar(screen, right, NULL);
+		UI_renderButtonHintBar(screen, right);
 	} else {
 		switch (sel->type) {
 		case ITEM_CYCLE:
 		case ITEM_COLOR: {
 			char* right[] = {"LEFT/RIGHT", "CHANGE", "B", back_label, NULL};
-			UI_renderButtonHintBar(screen, right, NULL);
+			UI_renderButtonHintBar(screen, right);
 			break;
 		}
 		case ITEM_BUTTON: {
 			char* right[] = {"B", back_label, "A", "SELECT", NULL};
-			UI_renderButtonHintBar(screen, right, NULL);
+			UI_renderButtonHintBar(screen, right);
 			break;
 		}
 		case ITEM_SUBMENU: {
 			char* right[] = {"B", back_label, "A", "OPEN", NULL};
-			UI_renderButtonHintBar(screen, right, NULL);
+			UI_renderButtonHintBar(screen, right);
 			break;
 		}
 		case ITEM_TEXT_INPUT: {
 			char* right[] = {"B", back_label, "A", "EDIT", NULL};
-			UI_renderButtonHintBar(screen, right, NULL);
+			UI_renderButtonHintBar(screen, right);
 			break;
 		}
 		default: {
 			char* right[] = {"B", back_label, NULL};
-			UI_renderButtonHintBar(screen, right, NULL);
+			UI_renderButtonHintBar(screen, right);
 			break;
 		}
 		}
@@ -610,7 +610,7 @@ void settings_menu_render(SDL_Surface* screen, int show_setting) {
 	GFX_clear(screen);
 
 	// Menu bar at top
-	UI_renderMenuBar(screen, page->title, show_setting);
+	UI_renderMenuBar(screen, page->title);
 
 	// Calculate list layout
 	ListLayout layout = UI_calcListLayout(screen);

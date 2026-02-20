@@ -19,9 +19,12 @@ SDL?=SDL
 
 ###########################################################
 
-TARGET = ledcontrol
+TARGET = updater
 INCDIR = -I. -I../common/ -I../../$(PLATFORM)/platform/
-SOURCE = $(TARGET).c ../common/utils.c ../common/api.c ../common/config.c ../common/scaler.c ../common/ui_components.c ../../$(PLATFORM)/platform/platform.c
+SOURCE = $(TARGET).c ../common/utils.c ../common/api.c \
+         ../common/config.c ../common/scaler.c \
+         ../common/http.c ../common/ui_components.c \
+         ../../$(PLATFORM)/platform/platform.c
 
 CC = $(CROSS_COMPILE)gcc
 CFLAGS  += $(OPT)

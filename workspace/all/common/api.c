@@ -168,6 +168,8 @@ static struct PWR_Context {
 	SDL_atomic_t is_online;
 	SDL_atomic_t update_secs;
 	SDL_atomic_t poll_network_status;
+
+	int show_setting;
 } pwr = {0};
 
 static struct SND_Context {
@@ -1881,12 +1883,11 @@ char** GFX_getHardwareHintPairs(int show_setting) {
 		return brightness_pairs;
 	if (show_setting == INDICATOR_COLORTEMP)
 		return colortemp_pairs;
-	return default_pairs;
+	if (show_setting)
+		return default_pairs;
+	return NULL;
 }
 
-void GFX_blitHardwareHints(SDL_Surface* dst, int show_setting) {
-	UI_renderButtonHintBar(dst, NULL, GFX_getHardwareHintPairs(show_setting));
-}
 
 #define MAX_TEXT_LINES 16
 void GFX_sizeText(TTF_Font* font, const char* str, int leading, int* w, int* h) {
@@ -3177,6 +3178,10 @@ int PWR_ignoreSettingInput(int btn, int show_setting) {
 	return show_setting && (btn == BTN_MOD_PLUS || btn == BTN_MOD_MINUS);
 }
 
+int PWR_getShowSetting(void) {
+	return GetHDMI() ? 0 : pwr.show_setting;
+}
+
 void PWR_update(bool* _dirty, int* _show_setting, PWR_callback_t before_sleep, PWR_callback_t after_sleep) {
 	bool dirty = _dirty ? *_dirty : false;
 	int show_setting = _show_setting ? *_show_setting : 0;
@@ -3288,6 +3293,7 @@ void PWR_update(bool* _dirty, int* _show_setting, PWR_callback_t before_sleep, P
 
 	if (show_setting)
 		dirty = true; // shm is slow or keymon is catching input on the next frame
+	pwr.show_setting = show_setting;
 	if (_dirty)
 		*_dirty = dirty;
 	if (_show_setting)

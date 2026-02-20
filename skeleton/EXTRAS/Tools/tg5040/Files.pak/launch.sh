@@ -9,4 +9,4 @@ else
     CFG="tg5040.cfg"
 fi
 
-./NextCommander --config $CFG
+./NextCommander --config $CFG &> "$LOGS_PATH/files.txt"

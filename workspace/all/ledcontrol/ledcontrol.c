@@ -263,10 +263,7 @@ int main(int argc, char* argv[]) {
 
 			int ow = GFX_blitHardwareGroup(screen, show_setting);
 
-			if (show_setting)
-				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, GFX_getHardwareHintPairs(show_setting));
-			else
-				UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL}, (char*[]){"L/R", "Select light", NULL});
+			UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "L/R", "Select light", NULL});
 
 
 			int max_width = screen->w - SCALE1(PADDING * 2) - ow;
