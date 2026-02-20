@@ -1780,10 +1780,46 @@ int main(int argc, char* argv[]) {
 	int was_online = PWR_isOnline();
 	int had_bt = PLAT_btIsConnected();
 	int quit = 0;
+	uint32_t start_press_time = 0;
 
 	while (!quit && !app_quit) {
 		GFX_startFrame();
 		PAD_poll();
+
+		// Long-press START to exit with confirmation
+		if (PAD_justPressed(BTN_START))
+			start_press_time = SDL_GetTicks();
+		if (PAD_isPressed(BTN_START) && start_press_time &&
+			SDL_GetTicks() - start_press_time >= 500) {
+			start_press_time = 0;
+			PAD_reset();
+
+			// Show confirmation dialog
+			int confirmed = 0;
+			int dialog_done = 0;
+			while (!dialog_done) {
+				GFX_startFrame();
+				PAD_poll();
+				if (PAD_justPressed(BTN_A)) {
+					confirmed = 1;
+					dialog_done = 1;
+				} else if (PAD_justPressed(BTN_B)) {
+					dialog_done = 1;
+				}
+				UI_renderConfirmDialog(screen, "Exit Settings?",
+									   "Your settings are automatically saved");
+				GFX_flip(screen);
+			}
+			PAD_reset();
+			if (confirmed) {
+				quit = 1;
+				continue;
+			}
+			dirty = 1;
+			continue;
+		}
+		if (!PAD_isPressed(BTN_START))
+			start_press_time = 0;
 
 		quit = settings_menu_handle_input(&dirty);
 		PWR_update((bool*)&dirty, &show_setting, NULL, NULL);

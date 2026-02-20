@@ -202,8 +202,6 @@ int settings_menu_handle_input(int* dirty) {
 			if (stack_depth <= 0)
 				return 1;
 		}
-		if (PAD_tappedMenu(SDL_GetTicks()))
-			return 1;
 		return 0;
 	}
 
@@ -298,10 +296,6 @@ int settings_menu_handle_input(int* dirty) {
 		if (stack_depth <= 0)
 			return 1;
 	}
-
-	// Menu button = immediate exit
-	if (PAD_tappedMenu(SDL_GetTicks()))
-		return 1;
 
 	if (changed)
 		*dirty = 1;

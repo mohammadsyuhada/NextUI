@@ -144,7 +144,10 @@ static void wifi_action_connect(void) {
 			free(password);
 		}
 	}
+
+	PAD_reset(); // clear input state so A press doesn't re-trigger on main wifi page
 	// Go back from options submenu
+	settings_menu_pop();
 	settings_menu_pop();
 }
 
