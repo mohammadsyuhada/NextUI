@@ -131,4 +131,26 @@ void settings_page_init_lock(SettingsPage* page);
 // Clean up a page
 void settings_page_destroy(SettingsPage* page);
 
+// ============================================
+// Helper macros for item initialization
+// ============================================
+
+#define ITEM_CYCLE_INIT(_name, _desc, _labels, _lcount, _values, _get, _set, _reset) \
+	{.name = (_name), .desc = (_desc), .type = ITEM_CYCLE, .visible = 1, .labels = (_labels), .label_count = (_lcount), .current_idx = 0, .get_value = (_get), .set_value = (_set), .values = (_values), .on_press = NULL, .submenu = NULL, .display_text = {0}, .get_display = NULL, .text_value = {0}, .on_text_set = NULL, .get_text = NULL, .on_reset = (_reset), .custom_draw = NULL, .user_data = NULL}
+
+#define ITEM_COLOR_INIT(_name, _desc, _labels, _lcount, _values, _get, _set, _reset) \
+	{.name = (_name), .desc = (_desc), .type = ITEM_COLOR, .visible = 1, .labels = (_labels), .label_count = (_lcount), .current_idx = 0, .get_value = (_get), .set_value = (_set), .values = (_values), .on_press = NULL, .submenu = NULL, .display_text = {0}, .get_display = NULL, .text_value = {0}, .on_text_set = NULL, .get_text = NULL, .on_reset = (_reset), .custom_draw = NULL, .user_data = NULL}
+
+#define ITEM_BUTTON_INIT(_name, _desc, _on_press) \
+	{.name = (_name), .desc = (_desc), .type = ITEM_BUTTON, .visible = 1, .labels = NULL, .label_count = 0, .current_idx = 0, .get_value = NULL, .set_value = NULL, .values = NULL, .on_press = (_on_press), .submenu = NULL, .display_text = {0}, .get_display = NULL, .text_value = {0}, .on_text_set = NULL, .get_text = NULL, .on_reset = NULL, .custom_draw = NULL, .user_data = NULL}
+
+#define ITEM_SUBMENU_INIT(_name, _desc, _submenu) \
+	{.name = (_name), .desc = (_desc), .type = ITEM_SUBMENU, .visible = 1, .labels = NULL, .label_count = 0, .current_idx = 0, .get_value = NULL, .set_value = NULL, .values = NULL, .on_press = NULL, .submenu = (_submenu), .display_text = {0}, .get_display = NULL, .text_value = {0}, .on_text_set = NULL, .get_text = NULL, .on_reset = NULL, .custom_draw = NULL, .user_data = NULL}
+
+#define ITEM_STATIC_INIT(_name, _desc, _get_display) \
+	{.name = (_name), .desc = (_desc), .type = ITEM_STATIC, .visible = 1, .labels = NULL, .label_count = 0, .current_idx = 0, .get_value = NULL, .set_value = NULL, .values = NULL, .on_press = NULL, .submenu = NULL, .display_text = {0}, .get_display = (_get_display), .text_value = {0}, .on_text_set = NULL, .get_text = NULL, .on_reset = NULL, .custom_draw = NULL, .user_data = NULL}
+
+#define ITEM_TEXT_INPUT_INIT(_name, _desc, _get_text, _on_text_set) \
+	{.name = (_name), .desc = (_desc), .type = ITEM_TEXT_INPUT, .visible = 1, .labels = NULL, .label_count = 0, .current_idx = 0, .get_value = NULL, .set_value = NULL, .values = NULL, .on_press = NULL, .submenu = NULL, .display_text = {0}, .get_display = NULL, .text_value = {0}, .on_text_set = (_on_text_set), .get_text = (_get_text), .on_reset = NULL, .custom_draw = NULL, .user_data = NULL}
+
 #endif // SETTINGS_MENU_H

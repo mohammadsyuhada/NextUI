@@ -377,6 +377,123 @@ ListItemBadgedPos UI_renderListItemPillBadged(
 }
 
 // ============================================
+// Settings Row Rendering
+// ============================================
+
+#define SETTINGS_ROW_PADDING 8
+
+int UI_renderSettingsRow(SDL_Surface* screen, ListLayout* layout,
+						 const char* label, const char* value,
+						 int y, bool selected, int swatch_color) {
+	int hw = screen->w;
+	TTF_Font* f = font.small;
+
+	// Measure label
+	int text_w, text_h;
+	TTF_SizeUTF8(f, label, &text_w, &text_h);
+	int label_pill_width = text_w + SCALE1(SETTINGS_ROW_PADDING * 2);
+
+	int pill_h = layout->item_h;
+	int text_x = SCALE1(PADDING) + SCALE1(SETTINGS_ROW_PADDING);
+	int text_y = y + (pill_h - TTF_FontHeight(f)) / 2;
+
+	if (selected) {
+		SDL_Color selected_text_color = UI_getListTextColor(1);
+
+		if (value) {
+			// 2-layer: full-width THEME_COLOR2 + label-width THEME_COLOR1
+			int row_width = hw - SCALE1(PADDING * 2);
+			SDL_Rect row_rect = {SCALE1(PADDING), y, row_width, pill_h};
+			GFX_blitRectColor(ASSET_BUTTON, screen, &row_rect, THEME_COLOR2);
+
+			SDL_Rect label_pill_rect = {SCALE1(PADDING), y, label_pill_width, pill_h};
+			GFX_blitRectColor(ASSET_BUTTON, screen, &label_pill_rect, THEME_COLOR1);
+
+			// Label text
+			SDL_Surface* label_surf = TTF_RenderUTF8_Blended(f, label, selected_text_color);
+			if (label_surf) {
+				SDL_BlitSurface(label_surf, NULL, screen, &(SDL_Rect){text_x, text_y, 0, 0});
+				SDL_FreeSurface(label_surf);
+			}
+
+			// Value with arrows, right-aligned, white text
+			int value_x = hw - SCALE1(PADDING) - SCALE1(SETTINGS_ROW_PADDING);
+			int val_text_y = y + (pill_h - TTF_FontHeight(font.tiny)) / 2;
+
+			// Color swatch
+			if (swatch_color >= 0) {
+				int swatch_size = SCALE1(FONT_TINY);
+				int swatch_y = y + (pill_h - swatch_size) / 2;
+				SDL_Rect border = {value_x - swatch_size, swatch_y, swatch_size, swatch_size};
+				SDL_FillRect(screen, &border, RGB_WHITE);
+				SDL_Rect inner = {border.x + 1, border.y + 1, border.w - 2, border.h - 2};
+				uint32_t col = (uint32_t)swatch_color;
+				uint32_t mapped = SDL_MapRGB(screen->format,
+											 (col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF);
+				SDL_FillRect(screen, &inner, mapped);
+				value_x -= swatch_size + SCALE1(4);
+			}
+
+			SDL_Surface* val_surf = TTF_RenderUTF8_Blended(font.tiny, value, COLOR_WHITE);
+			if (val_surf) {
+				value_x -= val_surf->w;
+				SDL_BlitSurface(val_surf, NULL, screen, &(SDL_Rect){value_x, val_text_y, 0, 0});
+				SDL_FreeSurface(val_surf);
+			}
+			return value_x;
+		} else {
+			// Single label rect only
+			SDL_Rect label_pill_rect = {SCALE1(PADDING), y, label_pill_width, pill_h};
+			GFX_blitRectColor(ASSET_BUTTON, screen, &label_pill_rect, THEME_COLOR1);
+
+			SDL_Surface* label_surf = TTF_RenderUTF8_Blended(f, label, selected_text_color);
+			if (label_surf) {
+				SDL_BlitSurface(label_surf, NULL, screen, &(SDL_Rect){text_x, text_y, 0, 0});
+				SDL_FreeSurface(label_surf);
+			}
+			return text_x;
+		}
+	} else {
+		// Unselected: no background
+		SDL_Color text_color = UI_getListTextColor(0);
+
+		SDL_Surface* label_surf = TTF_RenderUTF8_Blended(f, label, text_color);
+		if (label_surf) {
+			SDL_BlitSurface(label_surf, NULL, screen, &(SDL_Rect){text_x, text_y, 0, 0});
+			SDL_FreeSurface(label_surf);
+		}
+
+		if (value) {
+			int value_x = hw - SCALE1(PADDING) - SCALE1(SETTINGS_ROW_PADDING);
+			int val_text_y = y + (pill_h - TTF_FontHeight(font.tiny)) / 2;
+
+			// Color swatch
+			if (swatch_color >= 0) {
+				int swatch_size = SCALE1(FONT_TINY);
+				int swatch_y = y + (pill_h - swatch_size) / 2;
+				SDL_Rect border = {value_x - swatch_size, swatch_y, swatch_size, swatch_size};
+				SDL_FillRect(screen, &border, RGB_WHITE);
+				SDL_Rect inner = {border.x + 1, border.y + 1, border.w - 2, border.h - 2};
+				uint32_t col = (uint32_t)swatch_color;
+				uint32_t mapped = SDL_MapRGB(screen->format,
+											 (col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF);
+				SDL_FillRect(screen, &inner, mapped);
+				value_x -= swatch_size + SCALE1(4);
+			}
+
+			SDL_Surface* val_surf = TTF_RenderUTF8_Blended(font.tiny, value, text_color);
+			if (val_surf) {
+				value_x -= val_surf->w;
+				SDL_BlitSurface(val_surf, NULL, screen, &(SDL_Rect){value_x, val_text_y, 0, 0});
+				SDL_FreeSurface(val_surf);
+			}
+			return value_x;
+		}
+		return text_x;
+	}
+}
+
+// ============================================
 // Scroll Helpers
 // ============================================
 

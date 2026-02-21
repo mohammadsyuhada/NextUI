@@ -104,7 +104,6 @@ endif
 	cp ./workspace/all/settings/build/$(PLATFORM)/settings.elf ./build/EXTRAS/Tools/$(PLATFORM)/Settings.pak/
 	cp ./workspace/all/updater/build/$(PLATFORM)/updater.elf ./build/EXTRAS/Tools/$(PLATFORM)/Updater.pak/
 ifneq (,$(filter $(PLATFORM),tg5040 tg5050))
-	cp ./workspace/all/ledcontrol/build/$(PLATFORM)/ledcontrol.elf ./build/EXTRAS/Tools/$(PLATFORM)/LedControl.pak/
 	cp ./workspace/all/bootlogo/build/$(PLATFORM)/bootlogo.elf ./build/EXTRAS/Tools/$(PLATFORM)/Bootlogo.pak/
 ifeq ($(PLATFORM), tg5040)
 	# Limbo fix

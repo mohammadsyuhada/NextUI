@@ -13,6 +13,7 @@
 #include "settings_menu.h"
 #include "settings_wifi.h"
 #include "settings_bt.h"
+#include "settings_led.h"
 #include "ui_components.h"
 
 #include <stdio.h>
@@ -103,6 +104,11 @@ static int has_bluetooth(const DeviceInfo* dev) {
 	return dev->platform == PLAT_TG5050 || dev->platform == PLAT_TG5040 || dev->platform == PLAT_MY355;
 }
 
+static int has_leds(const DeviceInfo* dev) {
+	(void)dev;
+	return MAX_LIGHTS > 0;
+}
+
 // ============================================
 // Command execution helper
 // ============================================
@@ -150,7 +156,7 @@ static void extract_busybox_version(const char* output, char* version_out, int m
 
 #define COLOR_COUNT 110
 
-static const int color_values[COLOR_COUNT] = {
+const int color_values[COLOR_COUNT] = {
 	0x000022, 0x000044, 0x000066, 0x000088, 0x0000AA, 0x0000CC, 0x1E2329, 0x3366FF, 0x4D7AFF, 0x6699FF, 0x80B3FF, 0x99CCFF, 0xB3D9FF,
 	0x002222, 0x004444, 0x006666, 0x008888, 0x00AAAA, 0x00CCCC, 0x33FFFF, 0x4DFFFF, 0x66FFFF, 0x80FFFF, 0x99FFFF, 0xB3FFFF,
 	0x002200, 0x004400, 0x006600, 0x008800, 0x00AA00, 0x00CC00, 0x33FF33, 0x4DFF4D, 0x66FF66, 0x80FF80, 0x99FF99, 0xB3FFB3,
@@ -161,7 +167,7 @@ static const int color_values[COLOR_COUNT] = {
 	0x221100, 0x442200, 0x663300, 0x884400, 0xAA5500, 0xCC6600, 0xFF8833, 0xFF994D, 0xFFAA66, 0xFFBB80, 0xFFCC99, 0xFFDDB3,
 	0x000000, 0x141414, 0x282828, 0x3C3C3C, 0x505050, 0x646464, 0x8C8C8C, 0xA0A0A0, 0xB4B4B4, 0xC8C8C8, 0xDCDCDC, 0xFFFFFF};
 
-static const char* color_labels[COLOR_COUNT] = {
+const char* color_labels[COLOR_COUNT] = {
 	"0x000022", "0x000044", "0x000066", "0x000088", "0x0000AA", "0x0000CC", "0x1E2329", "0x3366FF", "0x4D7AFF", "0x6699FF", "0x80B3FF", "0x99CCFF", "0xB3D9FF",
 	"0x002222", "0x004444", "0x006666", "0x008888", "0x00AAAA", "0x00CCCC", "0x33FFFF", "0x4DFFFF", "0x66FFFF", "0x80FFFF", "0x99FFFF", "0xB3FFFF",
 	"0x002200", "0x004400", "0x006600", "0x008800", "0x00AA00", "0x00CC00", "0x33FF33", "0x4DFF4D", "0x66FF66", "0x80FF80", "0x99FF99", "0xB3FFB3",
@@ -1265,7 +1271,7 @@ static void init_about_info(void) {
 #define MAX_NOTIFY_ITEMS 8
 #define MAX_RA_ITEMS 15
 #define MAX_ABOUT_ITEMS 8
-#define MAX_MAIN_ITEMS 10
+#define MAX_MAIN_ITEMS 12
 
 static SettingItem appearance_items[MAX_APPEARANCE_ITEMS];
 static SettingItem display_items[MAX_DISPLAY_ITEMS];
@@ -1286,9 +1292,10 @@ static SettingsPage ra_page;
 static SettingsPage about_page;
 static SettingsPage main_page;
 
-/* WiFi/BT pages (created upfront in build_menu_tree) */
+/* WiFi/BT/LED pages (created upfront in build_menu_tree) */
 static SettingsPage* wifi_page_ptr = NULL;
 static SettingsPage* bt_page_ptr = NULL;
+static SettingsPage* led_page_ptr = NULL;
 
 // ============================================
 // Reset button callbacks (reference pages)
@@ -1313,27 +1320,7 @@ static void reset_ra_page(void) {
 	settings_page_reset_all(&ra_page);
 }
 
-// ============================================
-// Helper macro for item initialization
-// ============================================
-
-#define ITEM_CYCLE_INIT(_name, _desc, _labels, _lcount, _values, _get, _set, _reset) \
-	{.name = (_name), .desc = (_desc), .type = ITEM_CYCLE, .visible = 1, .labels = (_labels), .label_count = (_lcount), .current_idx = 0, .get_value = (_get), .set_value = (_set), .values = (_values), .on_press = NULL, .submenu = NULL, .display_text = {0}, .get_display = NULL, .text_value = {0}, .on_text_set = NULL, .get_text = NULL, .on_reset = (_reset), .custom_draw = NULL, .user_data = NULL}
-
-#define ITEM_COLOR_INIT(_name, _desc, _labels, _lcount, _values, _get, _set, _reset) \
-	{.name = (_name), .desc = (_desc), .type = ITEM_COLOR, .visible = 1, .labels = (_labels), .label_count = (_lcount), .current_idx = 0, .get_value = (_get), .set_value = (_set), .values = (_values), .on_press = NULL, .submenu = NULL, .display_text = {0}, .get_display = NULL, .text_value = {0}, .on_text_set = NULL, .get_text = NULL, .on_reset = (_reset), .custom_draw = NULL, .user_data = NULL}
-
-#define ITEM_BUTTON_INIT(_name, _desc, _on_press) \
-	{.name = (_name), .desc = (_desc), .type = ITEM_BUTTON, .visible = 1, .labels = NULL, .label_count = 0, .current_idx = 0, .get_value = NULL, .set_value = NULL, .values = NULL, .on_press = (_on_press), .submenu = NULL, .display_text = {0}, .get_display = NULL, .text_value = {0}, .on_text_set = NULL, .get_text = NULL, .on_reset = NULL, .custom_draw = NULL, .user_data = NULL}
-
-#define ITEM_SUBMENU_INIT(_name, _desc, _submenu) \
-	{.name = (_name), .desc = (_desc), .type = ITEM_SUBMENU, .visible = 1, .labels = NULL, .label_count = 0, .current_idx = 0, .get_value = NULL, .set_value = NULL, .values = NULL, .on_press = NULL, .submenu = (_submenu), .display_text = {0}, .get_display = NULL, .text_value = {0}, .on_text_set = NULL, .get_text = NULL, .on_reset = NULL, .custom_draw = NULL, .user_data = NULL}
-
-#define ITEM_STATIC_INIT(_name, _desc, _get_display) \
-	{.name = (_name), .desc = (_desc), .type = ITEM_STATIC, .visible = 1, .labels = NULL, .label_count = 0, .current_idx = 0, .get_value = NULL, .set_value = NULL, .values = NULL, .on_press = NULL, .submenu = NULL, .display_text = {0}, .get_display = (_get_display), .text_value = {0}, .on_text_set = NULL, .get_text = NULL, .on_reset = NULL, .custom_draw = NULL, .user_data = NULL}
-
-#define ITEM_TEXT_INPUT_INIT(_name, _desc, _get_text, _on_text_set) \
-	{.name = (_name), .desc = (_desc), .type = ITEM_TEXT_INPUT, .visible = 1, .labels = NULL, .label_count = 0, .current_idx = 0, .get_value = NULL, .set_value = NULL, .values = NULL, .on_press = NULL, .submenu = NULL, .display_text = {0}, .get_display = NULL, .text_value = {0}, .on_text_set = (_on_text_set), .get_text = (_get_text), .on_reset = NULL, .custom_draw = NULL, .user_data = NULL}
+// ITEM_*_INIT macros are defined in settings_menu.h
 
 // ============================================
 // Build menu tree
@@ -1681,6 +1668,15 @@ static void build_menu_tree(const DeviceInfo* dev) {
 
 	main_items[idx++] = (SettingItem)ITEM_SUBMENU_INIT(
 		"Notifications", "Save state notifications", &notify_page);
+
+	if (has_leds(dev)) {
+		led_page_ptr = led_page_create();
+		if (led_page_ptr) {
+			main_items[idx++] = (SettingItem)ITEM_SUBMENU_INIT(
+				"LED Control", "Configure LED lighting effects", led_page_ptr);
+		}
+	}
+
 	main_items[idx++] = (SettingItem)ITEM_SUBMENU_INIT(
 		"RetroAchievements", "Achievement tracking settings", &ra_page);
 
@@ -1792,6 +1788,8 @@ int main(int argc, char* argv[]) {
 	GFX_flip(screen);
 
 	/* Cleanup */
+	if (led_page_ptr)
+		led_page_destroy(led_page_ptr);
 	if (wifi_page_ptr)
 		wifi_page_destroy(wifi_page_ptr);
 	if (bt_page_ptr)

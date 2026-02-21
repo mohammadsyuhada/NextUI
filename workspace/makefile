@@ -52,7 +52,6 @@ endif
 	cd ./all/nextval/ && make
 	cd ./all/settings/ && make
 	cd ./all/updater/ && make
-	cd ./all/ledcontrol/ && make
 	cd ./all/bootlogo/ && make
 	cd ./all/audiomon && make all
 	cd ./all/show2/ && make
@@ -76,8 +75,7 @@ endif
 clean:
 ifneq ($(PLATFORM), desktop)
 	cd ./$(PLATFORM)/keymon && make clean
-	cd ./all/syncsettings/ && make clean
-	cd ./all/ledcontrol/ && make clean
+	cd ./all/syncsettings/ && make cleans
 	cd ./all/bootlogo/ && make clean
 	cd ./all/show2/ && make clean
 	cd ./all/batmon/ && make clean

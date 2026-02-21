@@ -13,7 +13,6 @@
 // ============================================
 
 #define MAX_PAGE_DEPTH 8
-#define OPTION_PADDING 8
 static SettingsPage* page_stack[MAX_PAGE_DEPTH];
 static int stack_depth = 0;
 
@@ -379,7 +378,7 @@ static void render_settings_mode(SDL_Surface* screen, SettingsPage* page, ListLa
 			continue;
 		}
 
-		// Build label text
+		// Build value string
 		const char* label = item->name;
 		const char* value_str = NULL;
 
@@ -399,118 +398,26 @@ static void render_settings_mode(SDL_Surface* screen, SettingsPage* page, ListLa
 				value_str = item->text_value;
 		}
 
-		TTF_Font* f = font.small;
-
-		// Measure label
-		int text_w, text_h;
-		TTF_SizeUTF8(f, label, &text_w, &text_h);
-		int label_pill_width = text_w + SCALE1(OPTION_PADDING * 2);
-
-		int pill_h = layout->item_h;
-		int pill_y = item_y;
-		int text_x = SCALE1(PADDING) + SCALE1(OPTION_PADDING);
-		int text_y = pill_y + (pill_h - TTF_FontHeight(f)) / 2;
-
-		if (selected) {
-			SDL_Color selected_text_color = UI_getListTextColor(1);
-
-			if (value_str) {
-				// 2-layer: full-width THEME_COLOR2 + label-width THEME_COLOR1
-
-				// Layer 1: full-width rect background
-				int row_width = hw - SCALE1(PADDING * 2);
-				SDL_Rect row_rect = {SCALE1(PADDING), pill_y, row_width, pill_h};
-				GFX_blitRectColor(ASSET_BUTTON, screen, &row_rect, THEME_COLOR2);
-
-				// Layer 2: label-width rect on top
-				SDL_Rect label_pill_rect = {SCALE1(PADDING), pill_y, label_pill_width, pill_h};
-				GFX_blitRectColor(ASSET_BUTTON, screen, &label_pill_rect, THEME_COLOR1);
-
-				// Label text
-				SDL_Surface* label_surf = TTF_RenderUTF8_Blended(f, label, selected_text_color);
-				if (label_surf) {
-					SDL_BlitSurface(label_surf, NULL, screen, &(SDL_Rect){text_x, text_y, 0, 0});
-					SDL_FreeSurface(label_surf);
-				}
-
-				// Value with arrows, right-aligned, white text
-				int value_x = hw - SCALE1(PADDING) - SCALE1(OPTION_PADDING);
-				int val_text_y = pill_y + (pill_h - TTF_FontHeight(font.tiny)) / 2;
-
-				// Color swatch (drawn first to reserve space on the right)
-				if (item->type == ITEM_COLOR && item->values &&
-					item->current_idx >= 0 && item->current_idx < item->label_count) {
-					int swatch_size = SCALE1(FONT_TINY);
-					int swatch_y = pill_y + (pill_h - swatch_size) / 2;
-					SDL_Rect border = {value_x - swatch_size, swatch_y, swatch_size, swatch_size};
-					SDL_FillRect(screen, &border, RGB_WHITE);
-					SDL_Rect inner = {border.x + 1, border.y + 1, border.w - 2, border.h - 2};
-					uint32_t col = (uint32_t)item->values[item->current_idx];
-					uint32_t mapped = SDL_MapRGB(screen->format,
-												 (col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF);
-					SDL_FillRect(screen, &inner, mapped);
-					value_x -= swatch_size + SCALE1(4);
-				}
-
-				char value_with_arrows[256];
-				if (item->type == ITEM_CYCLE || item->type == ITEM_COLOR)
-					snprintf(value_with_arrows, sizeof(value_with_arrows), "< %s >", value_str);
-				else
-					snprintf(value_with_arrows, sizeof(value_with_arrows), "%s", value_str);
-				SDL_Surface* val_surf = TTF_RenderUTF8_Blended(font.tiny, value_with_arrows, COLOR_WHITE);
-				if (val_surf) {
-					value_x -= val_surf->w;
-					SDL_BlitSurface(val_surf, NULL, screen, &(SDL_Rect){value_x, val_text_y, 0, 0});
-					SDL_FreeSurface(val_surf);
-				}
-			} else {
-				// Single label rect only
-				SDL_Rect label_pill_rect = {SCALE1(PADDING), pill_y, label_pill_width, pill_h};
-				GFX_blitRectColor(ASSET_BUTTON, screen, &label_pill_rect, THEME_COLOR1);
-
-				SDL_Surface* label_surf = TTF_RenderUTF8_Blended(f, label, selected_text_color);
-				if (label_surf) {
-					SDL_BlitSurface(label_surf, NULL, screen, &(SDL_Rect){text_x, text_y, 0, 0});
-					SDL_FreeSurface(label_surf);
-				}
-			}
-		} else {
-			// Unselected: no background
-			SDL_Color text_color = UI_getListTextColor(0);
-
-			SDL_Surface* label_surf = TTF_RenderUTF8_Blended(f, label, text_color);
-			if (label_surf) {
-				SDL_BlitSurface(label_surf, NULL, screen, &(SDL_Rect){text_x, text_y, 0, 0});
-				SDL_FreeSurface(label_surf);
-			}
-
-			if (value_str) {
-				int value_x = hw - SCALE1(PADDING) - SCALE1(OPTION_PADDING);
-				int val_text_y = pill_y + (pill_h - TTF_FontHeight(font.tiny)) / 2;
-
-				// Color swatch for unselected color items
-				if (item->type == ITEM_COLOR && item->values &&
-					item->current_idx >= 0 && item->current_idx < item->label_count) {
-					int swatch_size = SCALE1(FONT_TINY);
-					int swatch_y = pill_y + (pill_h - swatch_size) / 2;
-					SDL_Rect border = {value_x - swatch_size, swatch_y, swatch_size, swatch_size};
-					SDL_FillRect(screen, &border, RGB_WHITE);
-					SDL_Rect inner = {border.x + 1, border.y + 1, border.w - 2, border.h - 2};
-					uint32_t col = (uint32_t)item->values[item->current_idx];
-					uint32_t mapped = SDL_MapRGB(screen->format,
-												 (col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF);
-					SDL_FillRect(screen, &inner, mapped);
-					value_x -= swatch_size + SCALE1(4);
-				}
-
-				SDL_Surface* val_surf = TTF_RenderUTF8_Blended(font.tiny, value_str, text_color);
-				if (val_surf) {
-					value_x -= val_surf->w;
-					SDL_BlitSurface(val_surf, NULL, screen, &(SDL_Rect){value_x, val_text_y, 0, 0});
-					SDL_FreeSurface(val_surf);
-				}
-			}
+		// Color swatch for ITEM_COLOR
+		int swatch = -1;
+		if (item->type == ITEM_COLOR && item->values &&
+			item->current_idx >= 0 && item->current_idx < item->label_count) {
+			swatch = (int)(uint32_t)item->values[item->current_idx];
 		}
+
+		// Format display value (add arrows for cycleable items when selected)
+		char display_val[256];
+		const char* display_ptr = NULL;
+		if (value_str) {
+			if (selected && (item->type == ITEM_CYCLE || item->type == ITEM_COLOR))
+				snprintf(display_val, sizeof(display_val), "< %s >", value_str);
+			else
+				snprintf(display_val, sizeof(display_val), "%s", value_str);
+			display_ptr = display_val;
+		}
+
+		UI_renderSettingsRow(screen, layout, label, display_ptr,
+							 item_y, selected, swatch);
 	}
 
 	// Scroll indicators

@@ -59,11 +59,11 @@ export IS_NEXT="yes"
 
 ##Remove Old Led Daemon
 if [ -f "/etc/LedControl" ]; then
-	rm -Rf "/etc/LedControl"
+	rm -Rf "/etc/LedControl" 2> /dev/null
 fi
 if [ -f "/etc/init.d/lcservice" ]; then
 	/etc/init.d/lcservice disable
-	rm /etc/init.d/lcservice
+	rm /etc/init.d/lcservice 2> /dev/null
 fi
 
 # clear shadercache unconditionally, until it properly invalidates itself

@@ -95,6 +95,18 @@ ListItemBadgedPos UI_renderListItemPillBadged(
 	const char* text, const char* subtitle, char* truncated,
 	int y, bool selected, int badge_width, int extra_subtitle_width);
 
+// ---- Settings Row Rendering ----
+
+// Render a settings-style row: label (left) + value (right)
+// - selected: 2-layer pill (THEME_COLOR2 full-width + THEME_COLOR1 label-width),
+//   value with "< >" arrows
+// - unselected: no background, label + value text only
+// - swatch_color: if non-negative, draws a color swatch square next to the value
+// Returns the x position where value rendering ended (left edge of value area)
+int UI_renderSettingsRow(SDL_Surface* screen, ListLayout* layout,
+						 const char* label, const char* value,
+						 int y, bool selected, int swatch_color);
+
 // ---- Scroll Helpers ----
 
 void UI_adjustListScroll(int selected, int* scroll, int items_per_page);
