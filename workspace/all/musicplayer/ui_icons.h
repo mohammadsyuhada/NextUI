@@ -23,9 +23,6 @@ SDL_Surface* Icons_getForFormat(AudioFormat format, bool selected);
 SDL_Surface* Icons_getComplete(bool selected);
 SDL_Surface* Icons_getDownload(bool selected);
 
-// Empty state icon
-SDL_Surface* Icons_getEmpty(bool selected);
-
 // Check if icons are loaded
 bool Icons_isLoaded(void);
 

@@ -112,10 +112,4 @@ typedef struct {
 DialogBox render_dialog_box(SDL_Surface* screen, int box_w, int box_h);
 
 // ============================================
-// Empty State
-// ============================================
-
-void render_empty_state(SDL_Surface* screen, const char* message,
-						const char* subtitle, const char* y_button_label);
-
 #endif

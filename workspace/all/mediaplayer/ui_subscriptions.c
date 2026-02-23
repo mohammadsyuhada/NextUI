@@ -232,7 +232,7 @@ void render_channel_videos(SDL_Surface* screen, IndicatorType show_setting,
 	render_screen_header(screen, channel_name, show_setting);
 
 	if (results->count == 0) {
-		render_empty_state(screen, "No videos found", NULL, NULL);
+		UI_renderEmptyState(screen, "No videos found", NULL, NULL);
 		return;
 	}
 
@@ -314,6 +314,6 @@ void render_channel_searching(SDL_Surface* screen, const char* channel_name) {
 void render_subscriptions_empty(SDL_Surface* screen, IndicatorType show_setting) {
 	GFX_clear(screen);
 	render_screen_header(screen, "Subscriptions", show_setting);
-	render_empty_state(screen, "No subscriptions",
-					   "Subscribe to channels from YouTube search", NULL);
+	UI_renderEmptyState(screen, "No subscriptions",
+						"Subscribe to channels from YouTube search", NULL);
 }

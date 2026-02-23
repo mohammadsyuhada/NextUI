@@ -471,41 +471,6 @@ DialogBox render_dialog_box(SDL_Surface* screen, int box_w, int box_h) {
 	return db;
 }
 
-void render_empty_state(SDL_Surface* screen, const char* message,
-						const char* subtitle, const char* y_button_label) {
-	int hw = screen->w;
-	int hh = screen->h;
-	int center_y = hh / 2 - SCALE1(15);
-
-	SDL_Surface* icon = Icons_getEmpty(false);
-	if (icon) {
-		int icon_size = SCALE1(48);
-		SDL_Rect src_rect = {0, 0, icon->w, icon->h};
-		SDL_Rect dst_rect = {(hw - icon_size) / 2, center_y - SCALE1(40), icon_size, icon_size};
-		SDL_BlitScaled(icon, &src_rect, screen, &dst_rect);
-		center_y += icon_size / 2;
-	}
-
-	SDL_Surface* text1 = TTF_RenderUTF8_Blended(font.medium, message, COLOR_WHITE);
-	if (text1) {
-		SDL_BlitSurface(text1, NULL, screen, &(SDL_Rect){(hw - text1->w) / 2, center_y - SCALE1(10)});
-		SDL_FreeSurface(text1);
-	}
-
-	if (subtitle) {
-		SDL_Surface* text2 = TTF_RenderUTF8_Blended(font.small, subtitle, COLOR_GRAY);
-		if (text2) {
-			SDL_BlitSurface(text2, NULL, screen, &(SDL_Rect){(hw - text2->w) / 2, center_y + SCALE1(10)});
-			SDL_FreeSurface(text2);
-		}
-	}
-
-	if (y_button_label) {
-		UI_renderButtonHintBar(screen, (char*[]){"START", "CONTROLS", "Y", (char*)y_button_label, "B", "BACK", NULL});
-	} else {
-		UI_renderButtonHintBar(screen, (char*[]){"START", "CONTROLS", "B", "BACK", NULL});
-	}
-}
 
 // ============================================
 // Toast Notification (GPU layer, highest z-index)

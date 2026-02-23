@@ -126,8 +126,7 @@ void GameSwitcher_render(int lastScreen, SDL_Surface* blackBG,
 
 	if (Recents_count() <= 0) {
 		SDL_FillRect(screen, &(SDL_Rect){0, 0, screen->w, screen->h}, 0);
-		UI_renderCenteredMessage(screen, "No Recents");
-		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL});
+		UI_renderEmptyState(screen, "No Recents", "Play a game to see it here", NULL);
 		GFX_flipHidden();
 		return;
 	}

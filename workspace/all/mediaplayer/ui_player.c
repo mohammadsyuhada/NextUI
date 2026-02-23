@@ -29,8 +29,8 @@ void render_video_browser(SDL_Surface* screen, IndicatorType show_setting,
 
 	// Empty state: no videos at root
 	if (ctx->entry_count == 0) {
-		render_empty_state(screen, "No videos found",
-						   "Add videos to /Videos on your SD card", NULL);
+		UI_renderEmptyState(screen, "No videos found",
+							"Add videos to /Videos on your SD card", NULL);
 		return;
 	}
 

@@ -242,7 +242,7 @@ void render_downloader_queue(SDL_Surface* screen, IndicatorType show_setting,
 	// Empty queue message
 	if (qcount == 0) {
 		downloader_queue_clear_scroll();
-		render_empty_state(screen, "Queue is empty", "Search and add songs to download", NULL);
+		UI_renderEmptyState(screen, "Queue is empty", "Search and add songs to download", NULL);
 		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL});
 		return;
 	}

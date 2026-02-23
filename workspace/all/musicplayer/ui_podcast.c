@@ -658,7 +658,7 @@ void render_podcast_main_page(SDL_Surface* screen, IndicatorType show_setting,
 
 	// Empty state
 	if (total == 0) {
-		render_empty_state(screen, "No podcasts subscribed", "Press Y to manage podcasts", "MANAGE");
+		UI_renderEmptyState(screen, "No podcasts subscribed", "Press Y to manage podcasts", "MANAGE");
 		return;
 	}
 

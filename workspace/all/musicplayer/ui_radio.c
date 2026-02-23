@@ -29,7 +29,7 @@ void render_radio_list(SDL_Surface* screen, IndicatorType show_setting,
 
 	// Empty state - no stations saved
 	if (station_count == 0) {
-		render_empty_state(screen, "No stations saved", "Press Y to manage stations", "MANAGE");
+		UI_renderEmptyState(screen, "No stations saved", "Press Y to manage stations", "MANAGE");
 		return;
 	}
 

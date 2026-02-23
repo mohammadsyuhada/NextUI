@@ -6,6 +6,7 @@
 #include "vp_defines.h"
 #include "api.h"
 #include "ui_icons.h"
+#include "ui_components.h"
 
 #define ICON_FOLDER RES_PATH "/icon-folder.png"
 #define ICON_VIDEO RES_PATH "/icon-video.png"
@@ -19,7 +20,6 @@
 #define ICON_MPG RES_PATH "/icon-mpg.png"
 #define ICON_MPEG RES_PATH "/icon-mpeg.png"
 #define ICON_3GP RES_PATH "/icon-3gp.png"
-#define ICON_EMPTY RES_PATH "/icon-empty.png"
 
 // Icon storage - original (black) and inverted (white) versions
 typedef struct {
@@ -47,8 +47,6 @@ typedef struct {
 	SDL_Surface* mpeg_inv;
 	SDL_Surface* _3gp;
 	SDL_Surface* _3gp_inv;
-	SDL_Surface* empty;
-	SDL_Surface* empty_inv;
 	bool loaded;
 } IconSet;
 
@@ -126,7 +124,7 @@ void Icons_init(void) {
 	load_icon_pair(ICON_MPG, &icons.mpg, &icons.mpg_inv);
 	load_icon_pair(ICON_MPEG, &icons.mpeg, &icons.mpeg_inv);
 	load_icon_pair(ICON_3GP, &icons._3gp, &icons._3gp_inv);
-	load_icon_pair(ICON_EMPTY, &icons.empty, &icons.empty_inv);
+	UI_initEmptyIcon();
 
 	// Consider loaded if at least folder icon exists
 	icons.loaded = (icons.folder != NULL);
@@ -230,14 +228,7 @@ void Icons_quit(void) {
 		SDL_FreeSurface(icons._3gp_inv);
 		icons._3gp_inv = NULL;
 	}
-	if (icons.empty) {
-		SDL_FreeSurface(icons.empty);
-		icons.empty = NULL;
-	}
-	if (icons.empty_inv) {
-		SDL_FreeSurface(icons.empty_inv);
-		icons.empty_inv = NULL;
-	}
+	UI_quitEmptyIcon();
 	icons.loaded = false;
 }
 
@@ -323,8 +314,3 @@ SDL_Surface* Icons_getForFormat(VideoFormat format, bool selected) {
 }
 
 // Get empty state icon
-SDL_Surface* Icons_getEmpty(bool selected) {
-	if (!icons.loaded)
-		return NULL;
-	return selected ? icons.empty : icons.empty_inv;
-}

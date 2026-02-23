@@ -47,4 +47,14 @@ typedef struct {
 void UI_renderControlsHelp(SDL_Surface* screen, const char* title,
 						   const ControlHelp* controls);
 
+// Empty icon (shared between apps)
+void UI_initEmptyIcon(void);
+void UI_quitEmptyIcon(void);
+SDL_Surface* Icons_getEmpty(bool selected);
+
+// Render centered empty state with icon, message, optional subtitle, and button hints.
+// y_button_label: label for Y button (e.g., "NEW", "MANAGE"), or NULL for no Y button.
+void UI_renderEmptyState(SDL_Surface* screen, const char* message,
+						 const char* subtitle, const char* y_button_label);
+
 #endif // UI_COMPONENTS_H

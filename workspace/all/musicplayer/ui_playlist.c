@@ -24,7 +24,7 @@ void render_playlist_list(SDL_Surface* screen, IndicatorType show_setting,
 
 	// Empty state - no playlists
 	if (count == 0) {
-		render_empty_state(screen, "No playlists saved", "Press Y to create a playlist", "NEW");
+		UI_renderEmptyState(screen, "No playlists saved", "Press Y to create a playlist", "NEW");
 		return;
 	}
 
@@ -66,7 +66,7 @@ void render_playlist_detail(SDL_Surface* screen, IndicatorType show_setting,
 
 	// Empty state
 	if (count == 0) {
-		render_empty_state(screen, "No tracks in playlist", "Add tracks from the music browser", NULL);
+		UI_renderEmptyState(screen, "No tracks in playlist", "Add tracks from the music browser", NULL);
 		return;
 	}
 

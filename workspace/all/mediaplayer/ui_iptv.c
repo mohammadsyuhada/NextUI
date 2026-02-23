@@ -52,8 +52,8 @@ void render_iptv_user_channels(SDL_Surface* screen, IndicatorType show_setting,
 void render_iptv_empty(SDL_Surface* screen, IndicatorType show_setting) {
 	GFX_clear(screen);
 	render_screen_header(screen, "Online TV", show_setting);
-	render_empty_state(screen, "No channels saved",
-					   "Press Y to manage channels", NULL);
+	UI_renderEmptyState(screen, "No channels saved",
+						"Press Y to manage channels", NULL);
 
 	UI_renderButtonHintBar(screen, (char*[]){"START", "CONTROLS", "Y", "MANAGE", "B", "BACK", NULL});
 }

@@ -142,10 +142,4 @@ DialogBox render_dialog_box(SDL_Surface* screen, int box_w, int box_h);
 // Empty State
 // ============================================
 
-// Render centered empty state with icon, message, optional subtitle, and button groups
-// Renders the empty icon + message (medium/white) + subtitle (small/gray)
-// y_button_label: label for Y button (e.g., "NEW", "MANAGE"), or NULL for no Y button
-void render_empty_state(SDL_Surface* screen, const char* message,
-						const char* subtitle, const char* y_button_label);
-
 #endif

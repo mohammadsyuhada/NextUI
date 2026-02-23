@@ -119,7 +119,7 @@ void render_youtube_carousel(SDL_Surface* screen, IndicatorType show_setting,
 	GFX_clear(screen);
 
 	if (results->count == 0) {
-		render_empty_state(screen, "No results", "Try a different search", "SEARCH");
+		UI_renderEmptyState(screen, "No results", "Try a different search", "SEARCH");
 		return;
 	}
 

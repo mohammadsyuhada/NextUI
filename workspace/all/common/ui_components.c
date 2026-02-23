@@ -1,6 +1,71 @@
 #include "ui_components.h"
 #include "api.h"
 #include "defines.h"
+#include <SDL2/SDL_image.h>
+
+#define ICON_EMPTY_PATH RES_PATH "/icon-empty.png"
+
+static SDL_Surface* empty_icon = NULL;
+static SDL_Surface* empty_icon_inv = NULL;
+static bool empty_icon_loaded = false;
+
+static SDL_Surface* invert_icon_surface(SDL_Surface* src) {
+	if (!src)
+		return NULL;
+	SDL_Surface* dst = SDL_CreateRGBSurfaceWithFormat(
+		0, src->w, src->h, 32, SDL_PIXELFORMAT_RGBA32);
+	if (!dst)
+		return NULL;
+	SDL_LockSurface(src);
+	SDL_LockSurface(dst);
+	Uint32* src_pixels = (Uint32*)src->pixels;
+	Uint32* dst_pixels = (Uint32*)dst->pixels;
+	int pixel_count = src->w * src->h;
+	for (int i = 0; i < pixel_count; i++) {
+		Uint8 r, g, b, a;
+		SDL_GetRGBA(src_pixels[i], src->format, &r, &g, &b, &a);
+		r = 255 - r;
+		g = 255 - g;
+		b = 255 - b;
+		dst_pixels[i] = SDL_MapRGBA(dst->format, r, g, b, a);
+	}
+	SDL_UnlockSurface(dst);
+	SDL_UnlockSurface(src);
+	return dst;
+}
+
+void UI_initEmptyIcon(void) {
+	if (empty_icon_loaded)
+		return;
+	empty_icon = IMG_Load(ICON_EMPTY_PATH);
+	if (empty_icon) {
+		SDL_Surface* converted = SDL_ConvertSurfaceFormat(empty_icon, SDL_PIXELFORMAT_RGBA32, 0);
+		if (converted) {
+			SDL_FreeSurface(empty_icon);
+			empty_icon = converted;
+		}
+		empty_icon_inv = invert_icon_surface(empty_icon);
+	}
+	empty_icon_loaded = true;
+}
+
+void UI_quitEmptyIcon(void) {
+	if (empty_icon) {
+		SDL_FreeSurface(empty_icon);
+		empty_icon = NULL;
+	}
+	if (empty_icon_inv) {
+		SDL_FreeSurface(empty_icon_inv);
+		empty_icon_inv = NULL;
+	}
+	empty_icon_loaded = false;
+}
+
+SDL_Surface* Icons_getEmpty(bool selected) {
+	if (!empty_icon_loaded)
+		UI_initEmptyIcon();
+	return selected ? empty_icon : empty_icon_inv;
+}
 
 void UI_renderConfirmDialog(SDL_Surface* dst, const char* title,
 							const char* subtitle) {
@@ -356,5 +421,79 @@ void UI_renderControlsHelp(SDL_Surface* screen, const char* title,
 		int hint_y = box_y + box_h - SCALE1(10) - hint_surf->h;
 		SDL_BlitSurface(hint_surf, NULL, screen, &(SDL_Rect){content_x, hint_y});
 		SDL_FreeSurface(hint_surf);
+	}
+}
+
+void UI_renderEmptyState(SDL_Surface* screen, const char* message,
+						 const char* subtitle, const char* y_button_label) {
+	int hw = screen->w;
+	int hh = screen->h;
+
+	int btn_sz = SCALE1(BUTTON_SIZE);
+	int btn_gap = SCALE1(BUTTON_TEXT_GAP);
+	int btn_margin = SCALE1(BUTTON_MARGIN);
+
+	// Calculate total height for vertical centering
+	int icon_size = SCALE1(48);
+	SDL_Surface* icon = Icons_getEmpty(false);
+	int msg_h = TTF_FontHeight(font.medium);
+	int sub_h = subtitle ? TTF_FontHeight(font.small) : 0;
+
+	int total_h = 0;
+	if (icon)
+		total_h += icon_size + SCALE1(BUTTON_MARGIN);
+	total_h += msg_h;
+	if (subtitle)
+		total_h += SCALE1(BUTTON_MARGIN) + sub_h;
+	total_h += SCALE1(BUTTON_MARGIN) + btn_sz;
+
+	int y = (hh - total_h) / 2;
+
+	// Icon
+	if (icon) {
+		SDL_Rect src_rect = {0, 0, icon->w, icon->h};
+		SDL_Rect dst_rect = {(hw - icon_size) / 2, y, icon_size, icon_size};
+		SDL_BlitScaled(icon, &src_rect, screen, &dst_rect);
+		y += icon_size + SCALE1(BUTTON_MARGIN);
+	}
+
+	// Message
+	SDL_Surface* text1 = TTF_RenderUTF8_Blended(font.medium, message, COLOR_WHITE);
+	if (text1) {
+		SDL_BlitSurface(text1, NULL, screen, &(SDL_Rect){(hw - text1->w) / 2, y});
+		SDL_FreeSurface(text1);
+	}
+	y += msg_h;
+
+	// Subtitle
+	if (subtitle) {
+		y += SCALE1(BUTTON_MARGIN);
+		SDL_Surface* text2 = TTF_RenderUTF8_Blended(font.small, subtitle, COLOR_GRAY);
+		if (text2) {
+			SDL_BlitSurface(text2, NULL, screen, &(SDL_Rect){(hw - text2->w) / 2, y});
+			SDL_FreeSurface(text2);
+		}
+		y += sub_h;
+	}
+
+	// Buttons (centered, like confirm dialog)
+	y += SCALE1(BUTTON_MARGIN);
+
+	int back_w, th;
+	TTF_SizeUTF8(font.tiny, "BACK", &back_w, &th);
+	int btn_back_w = btn_sz + btn_gap + back_w;
+
+	if (y_button_label) {
+		int label_w;
+		TTF_SizeUTF8(font.tiny, y_button_label, &label_w, &th);
+		int btn_y_w = btn_sz + btn_gap + label_w;
+		int total_btn_w = btn_back_w + btn_margin + btn_y_w;
+		int bx = (hw - total_btn_w) / 2;
+		GFX_blitButton("BACK", "B", screen, &(SDL_Rect){bx, y, 0, 0});
+		bx += btn_back_w + btn_margin;
+		GFX_blitButton((char*)y_button_label, "Y", screen, &(SDL_Rect){bx, y, 0, 0});
+	} else {
+		int bx = (hw - btn_back_w) / 2;
+		GFX_blitButton("BACK", "B", screen, &(SDL_Rect){bx, y, 0, 0});
 	}
 }
