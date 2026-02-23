@@ -575,10 +575,19 @@ void PLAT_wifiConnectPass(const char* ssid, WifiSecurityType sec, const char* pa
 		usleep(500000);
 		if (PLAT_wifiConnected()) {
 			wifilog("PLAT_wifiConnectPass: connected successfully after %d attempts\n", i + 1);
-			// Request IP via DHCP
+
+			// Re-enable all saved networks so wpa_supplicant can auto-reconnect
+			// to any known network if the current connection drops (e.g. during
+			// pak transitions). select_network disables all other networks, which
+			// prevents auto-reconnection.
+			wifilog("Re-enabling all saved networks for auto-reconnect...\n");
+			system(WPA_CLI_CMD " enable_network all 2>/dev/null");
+
+			// Request IP via DHCP (persistent so lease renewals keep working)
 			wifilog("Requesting IP address via DHCP...\n");
+			system("killall udhcpc 2>/dev/null");
 			char dhcp_cmd[128];
-			snprintf(dhcp_cmd, sizeof(dhcp_cmd), "udhcpc -i %s -n -q 2>/dev/null &", WIFI_INTERFACE);
+			snprintf(dhcp_cmd, sizeof(dhcp_cmd), "udhcpc -i %s -b 2>/dev/null &", WIFI_INTERFACE);
 			system(dhcp_cmd);
 			return;
 		}
