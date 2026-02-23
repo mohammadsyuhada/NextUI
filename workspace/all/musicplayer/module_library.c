@@ -24,7 +24,7 @@ static const char* library_items[] = {"Files", "Playlists", "Downloader"};
 static char library_toast_message[128] = "";
 static uint32_t library_toast_time = 0;
 
-static void render_library_menu(SDL_Surface* screen, int show_setting, int menu_selected) {
+static void render_library_menu(SDL_Surface* screen, IndicatorType show_setting, int menu_selected) {
 	SimpleMenuConfig config = {
 		.title = "Library",
 		.items = library_items,
@@ -44,8 +44,8 @@ void LibraryModule_setToast(const char* message) {
 
 ModuleExitReason LibraryModule_run(SDL_Surface* screen) {
 	int menu_selected = 0;
-	int dirty = 1;
-	int show_setting = 0;
+	bool dirty = true;
+	IndicatorType show_setting = INDICATOR_NONE;
 
 	while (1) {
 		PAD_poll();

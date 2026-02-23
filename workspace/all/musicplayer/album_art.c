@@ -10,7 +10,7 @@
 #include <time.h>
 #include <pthread.h>
 #include "api.h"
-#include "include/parson/parson.h"
+#include "parson/parson.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 

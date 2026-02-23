@@ -56,6 +56,7 @@ endif
 	cd ./all/audiomon && make all
 	cd ./all/show2/ && make
 	cd ./all/musicplayer/ && make
+	cd ./all/mediaplayer/ && make
 endif
 ifdef COMPILE_CORES
 	make cores
@@ -101,4 +102,5 @@ endif
 	cd ./all/updater/ && make clean
 	cd ./all/audiomon/ && make clean
 	cd ./all/musicplayer/ && make clean
+	cd ./all/mediaplayer/ && make clean
 	cd ./$(PLATFORM) && make clean

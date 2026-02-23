@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -15,8 +16,8 @@ static uint32_t menu_toast_time = 0;
 
 int MenuModule_run(SDL_Surface* screen) {
 	int menu_selected = 0;
-	int dirty = 1;
-	int show_setting = 0;
+	bool dirty = true;
+	IndicatorType show_setting = INDICATOR_NONE;
 
 	while (1) {
 		PAD_poll();

@@ -486,7 +486,7 @@ bool YtdlpUpdater_isUpdating(void) {
 	return update_running;
 }
 
-void render_ytdlp_updating(SDL_Surface* screen, int show_setting) {
+void render_ytdlp_updating(SDL_Surface* screen, IndicatorType show_setting) {
 	GFX_clear(screen);
 	int hw = screen->w;
 	int hh = screen->h;

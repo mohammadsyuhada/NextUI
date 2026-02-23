@@ -30,7 +30,7 @@ static char last_lyric_line[256] = "";
 static char last_next_lyric_line[256] = "";
 
 // Render the file browser
-void render_browser(SDL_Surface* screen, int show_setting, BrowserContext* browser) {
+void render_browser(SDL_Surface* screen, IndicatorType show_setting, BrowserContext* browser) {
 	GFX_clear(screen);
 
 	int hw = screen->w;
@@ -48,7 +48,7 @@ void render_browser(SDL_Surface* screen, int show_setting, BrowserContext* brows
 	}
 
 	// Use common list layout calculation
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 	browser->items_per_page = layout.items_per_page;
 
 	adjust_list_scroll(browser->selected, &browser->scroll_offset, browser->items_per_page);
@@ -87,7 +87,7 @@ void render_browser(SDL_Surface* screen, int show_setting, BrowserContext* brows
 		}
 
 		// Render pill background and get text position (with icon offset)
-		ListItemPos pos = render_list_item_pill(screen, &layout, display, truncated, y, selected, icon_offset);
+		ListItemPos pos = UI_renderListItemPill(screen, &layout, font.medium, display, truncated, y, selected, icon_offset);
 
 		// Render icon if available
 		if (Icons_isLoaded()) {
@@ -117,7 +117,7 @@ void render_browser(SDL_Surface* screen, int show_setting, BrowserContext* brows
 		int available_width = pos.pill_width - SCALE1(BUTTON_PADDING * 2) - icon_offset;
 
 		// Use common text rendering with scrolling for selected items
-		render_list_item_text(screen, &browser_scroll, display, font.medium,
+		UI_renderListItemText(screen, &browser_scroll, display, font.medium,
 							  text_x, pos.text_y, available_width, selected);
 	}
 
@@ -128,7 +128,7 @@ void render_browser(SDL_Surface* screen, int show_setting, BrowserContext* brows
 }
 
 // Render the now playing screen
-void render_playing(SDL_Surface* screen, int show_setting, BrowserContext* browser,
+void render_playing(SDL_Surface* screen, IndicatorType show_setting, BrowserContext* browser,
 					bool shuffle_enabled, bool repeat_enabled,
 					int playlist_track_num, int playlist_total) {
 	GFX_clear(screen);

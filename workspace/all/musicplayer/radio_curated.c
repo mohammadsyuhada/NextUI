@@ -5,7 +5,7 @@
 #include <string.h>
 #include <dirent.h>
 #include "api.h"
-#include "include/parson/parson.h"
+#include "parson/parson.h"
 
 // Maximum limits
 #define MAX_CURATED_COUNTRIES 32

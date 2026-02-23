@@ -115,7 +115,7 @@ static bool main_menu_render_text(SDL_Surface* screen, int index, bool selected,
 }
 
 // Render the main menu
-void render_menu(SDL_Surface* screen, int show_setting, int menu_selected,
+void render_menu(SDL_Surface* screen, IndicatorType show_setting, int menu_selected,
 				 char* toast_message, uint32_t toast_time, int first_item_mode) {
 	current_first_item_mode = first_item_mode;
 	bool has_first = (first_item_mode != MENU_FIRST_NONE);

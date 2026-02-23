@@ -10,7 +10,7 @@
 #define WIFI_CONNECT_TIMEOUT_INTERVALS 10 // 5 seconds total
 
 // Render a simple "Connecting..." screen
-static void render_connecting_screen(SDL_Surface* scr, int show_setting) {
+static void render_connecting_screen(SDL_Surface* scr, IndicatorType show_setting) {
 	// Clear GPU scroll text layer to prevent bleeding through
 	Podcast_clearTitleScroll();
 	GFX_clear(scr);
@@ -39,7 +39,7 @@ bool Wifi_isConnected(void) {
 // Returns true if connected, false otherwise
 // Shows "Connecting..." screen while waiting (if scr is not NULL)
 // Can be called from background threads with scr=NULL to skip UI rendering
-bool Wifi_ensureConnected(SDL_Surface* scr, int show_setting) {
+bool Wifi_ensureConnected(SDL_Surface* scr, IndicatorType show_setting) {
 	// Already connected?
 	if (Wifi_isConnected()) {
 		return true;

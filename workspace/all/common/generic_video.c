@@ -1442,12 +1442,24 @@ void PLAT_animateSlidePages(
 		int in_cy = in_y + (int)((in_target_y - in_y) * eased);
 
 		switch (layer) {
-		case 1: SDL_SetRenderTarget(vid.renderer, vid.target_layer1); break;
-		case 2: SDL_SetRenderTarget(vid.renderer, vid.target_layer2); break;
-		case 3: SDL_SetRenderTarget(vid.renderer, vid.target_layer3); break;
-		case 4: SDL_SetRenderTarget(vid.renderer, vid.target_layer4); break;
-		case 5: SDL_SetRenderTarget(vid.renderer, vid.target_layer5); break;
-		default: SDL_SetRenderTarget(vid.renderer, vid.target_layer1); break;
+		case 1:
+			SDL_SetRenderTarget(vid.renderer, vid.target_layer1);
+			break;
+		case 2:
+			SDL_SetRenderTarget(vid.renderer, vid.target_layer2);
+			break;
+		case 3:
+			SDL_SetRenderTarget(vid.renderer, vid.target_layer3);
+			break;
+		case 4:
+			SDL_SetRenderTarget(vid.renderer, vid.target_layer4);
+			break;
+		case 5:
+			SDL_SetRenderTarget(vid.renderer, vid.target_layer5);
+			break;
+		default:
+			SDL_SetRenderTarget(vid.renderer, vid.target_layer1);
+			break;
 		}
 		SDL_SetRenderDrawColor(vid.renderer, 0, 0, 0, 0);
 		SDL_RenderClear(vid.renderer);

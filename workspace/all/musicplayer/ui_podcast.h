@@ -1,6 +1,7 @@
 #ifndef __UI_PODCAST_H__
 #define __UI_PODCAST_H__
 
+#include "api.h"
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 
@@ -12,7 +13,7 @@ typedef enum {
 } PodcastManageMenuItem;
 
 // Render redesigned podcast main page (continue listening + subscriptions)
-void render_podcast_main_page(SDL_Surface* screen, int show_setting,
+void render_podcast_main_page(SDL_Surface* screen, IndicatorType show_setting,
 							  int selected, int* scroll,
 							  const char* toast_message, uint32_t toast_time);
 
@@ -24,31 +25,31 @@ void Podcast_clearThumbnailCache(void);
 bool Podcast_loadPendingThumbnails(void);
 
 // Render the podcast management menu (Y button opens this)
-void render_podcast_manage(SDL_Surface* screen, int show_setting,
+void render_podcast_manage(SDL_Surface* screen, IndicatorType show_setting,
 						   int menu_selected, int subscription_count);
 
 // Render Top Shows list
-void render_podcast_top_shows(SDL_Surface* screen, int show_setting,
+void render_podcast_top_shows(SDL_Surface* screen, IndicatorType show_setting,
 							  int selected, int* scroll,
 							  const char* toast_message, uint32_t toast_time);
 
 // Render search results
-void render_podcast_search_results(SDL_Surface* screen, int show_setting,
+void render_podcast_search_results(SDL_Surface* screen, IndicatorType show_setting,
 								   int selected, int* scroll,
 								   const char* toast_message, uint32_t toast_time);
 
 // Render episode list for a feed
-void render_podcast_episodes(SDL_Surface* screen, int show_setting,
+void render_podcast_episodes(SDL_Surface* screen, IndicatorType show_setting,
 							 int feed_index, int selected, int* scroll,
 							 const char* toast_message, uint32_t toast_time);
 
 // Render download queue view
-void render_podcast_download_queue(SDL_Surface* screen, int show_setting,
+void render_podcast_download_queue(SDL_Surface* screen, IndicatorType show_setting,
 								   int selected, int* scroll,
 								   const char* toast_message, uint32_t toast_time);
 
 // Render now playing screen for podcast
-void render_podcast_playing(SDL_Surface* screen, int show_setting,
+void render_podcast_playing(SDL_Surface* screen, IndicatorType show_setting,
 							int feed_index, int episode_index);
 
 // Render loading screen (for fetching feed, charts, etc.)

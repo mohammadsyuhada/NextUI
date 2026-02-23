@@ -1,12 +1,13 @@
 #ifndef __UI_MAIN_H__
 #define __UI_MAIN_H__
 
+#include "api.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <SDL2/SDL.h>
 
 // Render the main menu (first_item_mode: 0=none, 1=Resume, 2=Now Playing)
-void render_menu(SDL_Surface* screen, int show_setting, int menu_selected,
+void render_menu(SDL_Surface* screen, IndicatorType show_setting, int menu_selected,
 				 char* toast_message, uint32_t toast_time, int first_item_mode);
 
 // Render controls help dialog overlay

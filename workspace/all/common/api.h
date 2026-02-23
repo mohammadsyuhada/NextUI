@@ -284,11 +284,11 @@ SDL_Surface* GFX_init(int mode);
 #define GFX_animateSurface PLAT_animateSurface					   //(SDL_Surface *inputSurface,int x, int y)
 #define GFX_animateSurfaceOpacity PLAT_animateSurfaceOpacity	   //(SDL_Surface *inputSurface,int x, int y)
 #define GFX_animateSlidePages PLAT_animateSlidePages
-#define GFX_textShouldScroll PLAT_textShouldScroll				   // (TTF_Font* font, const char* in_name,int max_width, SDL_mutex* fontMutex);
-#define GFX_resetScrollText PLAT_resetScrollText				   // (void);
-#define GFX_scrollTextTexture PLAT_scrollTextTexture			   // (TTF_Font* font, const char* in_name,int x, int y, int w, int h, SDL_Color color, float transparency, SDL_mutex* fontMutex);
-#define GFX_flipHidden PLAT_flipHidden							   //(void)
-#define GFX_GL_screenCapture PLAT_GL_screenCapture				   //(void)
+#define GFX_textShouldScroll PLAT_textShouldScroll	 // (TTF_Font* font, const char* in_name,int max_width, SDL_mutex* fontMutex);
+#define GFX_resetScrollText PLAT_resetScrollText	 // (void);
+#define GFX_scrollTextTexture PLAT_scrollTextTexture // (TTF_Font* font, const char* in_name,int x, int y, int w, int h, SDL_Color color, float transparency, SDL_mutex* fontMutex);
+#define GFX_flipHidden PLAT_flipHidden				 //(void)
+#define GFX_GL_screenCapture PLAT_GL_screenCapture	 //(void)
 
 void GFX_setMode(int mode);
 int GFX_hdmiChanged(void);

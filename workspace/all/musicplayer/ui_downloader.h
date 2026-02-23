@@ -4,24 +4,25 @@
 #include <SDL2/SDL.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "api.h"
 #include "downloader.h"
 
 // Render downloader sub-menu
-void render_downloader_menu(SDL_Surface* screen, int show_setting, int menu_selected,
+void render_downloader_menu(SDL_Surface* screen, IndicatorType show_setting, int menu_selected,
 							char* toast_message, uint32_t toast_time);
 
 // Render downloader searching status
-void render_downloader_searching(SDL_Surface* screen, int show_setting, const char* search_query);
+void render_downloader_searching(SDL_Surface* screen, IndicatorType show_setting, const char* search_query);
 
 // Render downloader search results
-void render_downloader_results(SDL_Surface* screen, int show_setting,
+void render_downloader_results(SDL_Surface* screen, IndicatorType show_setting,
 							   const char* search_query,
 							   DownloaderResult* results, int result_count,
 							   int selected, int* scroll,
 							   char* toast_message, uint32_t toast_time, bool searching);
 
 // Render downloader download queue
-void render_downloader_queue(SDL_Surface* screen, int show_setting,
+void render_downloader_queue(SDL_Surface* screen, IndicatorType show_setting,
 							 int queue_selected, int* queue_scroll);
 
 // Check if downloader results list has active scrolling (for refresh optimization)

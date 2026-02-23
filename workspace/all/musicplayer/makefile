@@ -28,11 +28,11 @@ include ../../$(PLATFORM)/platform/makefile.env
 
 TARGET = musicplayer
 INCDIR = -I. -I./audio -I../common/ -I../../$(PLATFORM)/platform/ -I../minarch/libretro-common/include
-INCDIR += -I./include -I./include/mbedtls_lib -I./include/yxml
+INCDIR += -I../include -I../include/mbedtls_lib -I./include/yxml
 INCDIR += -I./include/libogg -I./include/libopus/include -I./include/opusfile/include
 
 # mbedTLS source files (for HTTPS support)
-MBEDTLS_SRC = $(wildcard include/mbedtls_lib/*.c)
+MBEDTLS_SRC = $(wildcard ../include/mbedtls_lib/*.c)
 
 # Opus/OGG library sources (compiled separately to avoid header conflicts)
 LIBOGG_SRC = include/libogg/src/bitwise.c include/libogg/src/framing.c
@@ -58,8 +58,8 @@ SOURCE = $(TARGET).c player.c playlist.c playlist_m3u.c radio.c radio_net.c albu
          ui_fonts.c ui_icons.c ui_utils.c browser.c ui_album_art.c ui_main.c ui_music.c ui_radio.c ui_downloader.c ui_podcast.c ui_playlist.c ui_settings.c \
          spectrum.c audio/kiss_fft.c audio/kiss_fftr.c \
          include/yxml/yxml.c \
-         include/parson/parson.c \
-         include/mbedtls_entropy_alt.c \
+         ../include/parson/parson.c \
+         ../include/mbedtls_entropy_alt.c \
          $(MBEDTLS_SRC) \
          ../common/utils.c ../common/api.c ../common/config.c ../common/scaler.c ../common/ui_components.c ../common/ui_list.c ../common/ui_keyboard.c ../common/ytdlp_updater.c \
          ../../$(PLATFORM)/platform/platform.c

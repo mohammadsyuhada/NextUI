@@ -22,20 +22,6 @@ void adjust_list_scroll(int selected, int* scroll, int items_per_page);
 // Render scroll up/down indicators for lists
 void render_scroll_indicators(SDL_Surface* screen, int scroll, int items_per_page, int total_count);
 
-// Calculate standard list layout based on screen dimensions
-ListLayout calc_list_layout(SDL_Surface* screen);
-
-// Render a list item's text with optional scrolling for selected items
-void render_list_item_text(SDL_Surface* screen, ScrollTextState* scroll_state,
-						   const char* text, TTF_Font* font_param,
-						   int text_x, int text_y, int max_text_width,
-						   bool selected);
-
-// Render a list item's pill background and calculate text position
-ListItemPos render_list_item_pill(SDL_Surface* screen, ListLayout* layout,
-								  const char* text, char* truncated,
-								  int y, bool selected, int prefix_width);
-
 // Render a list item's pill with optional right-side badge area
 ListItemBadgedPos render_list_item_pill_badged(SDL_Surface* screen, ListLayout* layout,
 											   const char* text, const char* subtitle,
@@ -96,7 +82,7 @@ typedef struct {
 	MenuItemCustomTextCallback render_text;
 } SimpleMenuConfig;
 
-void render_simple_menu(SDL_Surface* screen, int show_setting, int menu_selected,
+void render_simple_menu(SDL_Surface* screen, IndicatorType show_setting, int menu_selected,
 						const SimpleMenuConfig* config);
 
 // ============================================

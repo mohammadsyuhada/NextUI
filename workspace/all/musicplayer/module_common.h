@@ -3,6 +3,7 @@
 
 #include <SDL2/SDL.h>
 #include <stdbool.h>
+#include "api.h"
 #include "player.h"
 
 // Toast duration for all modules (3 seconds)
@@ -33,7 +34,7 @@ void ModuleCommon_init(void);
 //   screen - SDL surface for rendering dialogs
 //   show_setting - pointer to show_setting flag (for power hints)
 //   app_state - current app state (for controls help context)
-GlobalInputResult ModuleCommon_handleGlobalInput(SDL_Surface* screen, int* show_setting, int app_state);
+GlobalInputResult ModuleCommon_handleGlobalInput(SDL_Surface* screen, IndicatorType* show_setting, int app_state);
 
 // Disable/enable autosleep (for modules with active playback)
 void ModuleCommon_setAutosleepDisabled(bool disabled);
@@ -61,14 +62,14 @@ void ModuleCommon_recordInputTime(void);
 bool ModuleCommon_checkAutoScreenOffTimeout(void);
 
 // Check toast state: if active and not expired, sets dirty=1; if expired, clears message and sets dirty=1.
-void ModuleCommon_tickToast(char* message, uint32_t toast_time, int* dirty);
+void ModuleCommon_tickToast(char* message, uint32_t toast_time, bool* dirty);
 
 // Clean up module common resources (call at app exit)
 void ModuleCommon_quit(void);
 
 // PWR_update wrapper with overlay auto-hide on button release
 // Call this instead of PWR_update directly in modules
-void ModuleCommon_PWR_update(int* dirty, int* show_setting);
+void ModuleCommon_PWR_update(bool* dirty, IndicatorType* show_setting);
 
 // Handle a single HID volume event. Returns true if the event was a volume event.
 bool ModuleCommon_handleHIDVolume(USBHIDEvent hid_event);

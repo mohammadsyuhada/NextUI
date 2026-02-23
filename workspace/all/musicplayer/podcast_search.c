@@ -9,7 +9,7 @@
 #include "api.h"
 
 // JSON library
-#include "include/parson/parson.h"
+#include "parson/parson.h"
 
 // URL encode a string for use in query parameters
 static void url_encode(const char* src, char* dest, size_t dest_size) {

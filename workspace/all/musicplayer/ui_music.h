@@ -3,6 +3,7 @@
 
 #include <SDL2/SDL.h>
 #include <stdbool.h>
+#include "api.h"
 #include "browser.h"
 
 // Use LAYER_THUMBNAIL (3) for playtime - platform only supports layers 0-5
@@ -10,11 +11,11 @@
 #define LAYER_LYRICS 2
 
 // Render the file browser screen
-void render_browser(SDL_Surface* screen, int show_setting, BrowserContext* browser);
+void render_browser(SDL_Surface* screen, IndicatorType show_setting, BrowserContext* browser);
 
 // Render the now playing screen
 // playlist_track_num and playlist_total: if > 0, use these instead of browser counts
-void render_playing(SDL_Surface* screen, int show_setting, BrowserContext* browser,
+void render_playing(SDL_Surface* screen, IndicatorType show_setting, BrowserContext* browser,
 					bool shuffle_enabled, bool repeat_enabled,
 					int playlist_track_num, int playlist_total);
 

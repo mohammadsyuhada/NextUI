@@ -58,7 +58,7 @@ static const char* youtube_menu_get_label(int index, const char* default_label,
 }
 
 // Render YouTube sub-menu
-void render_downloader_menu(SDL_Surface* screen, int show_setting, int menu_selected,
+void render_downloader_menu(SDL_Surface* screen, IndicatorType show_setting, int menu_selected,
 							char* toast_message, uint32_t toast_time) {
 	SimpleMenuConfig config = {
 		.title = "Downloader",
@@ -75,7 +75,7 @@ void render_downloader_menu(SDL_Surface* screen, int show_setting, int menu_sele
 }
 
 // Render YouTube searching status
-void render_downloader_searching(SDL_Surface* screen, int show_setting, const char* search_query) {
+void render_downloader_searching(SDL_Surface* screen, IndicatorType show_setting, const char* search_query) {
 	GFX_clear(screen);
 
 	int hw = screen->w;
@@ -105,7 +105,7 @@ void render_downloader_searching(SDL_Surface* screen, int show_setting, const ch
 }
 
 // Render YouTube search results
-void render_downloader_results(SDL_Surface* screen, int show_setting,
+void render_downloader_results(SDL_Surface* screen, IndicatorType show_setting,
 							   const char* search_query,
 							   DownloaderResult* results, int result_count,
 							   int selected, int* scroll,
@@ -122,7 +122,7 @@ void render_downloader_results(SDL_Surface* screen, int show_setting,
 	UI_renderMenuBar(screen, title);
 
 	// Use common list layout calculation
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 
 	// Adjust scroll (only if there's a selection)
 	if (selected >= 0) {
@@ -173,7 +173,7 @@ void render_downloader_results(SDL_Surface* screen, int show_setting,
 
 		// Title - use common text rendering with scrolling for selected items
 		int title_max_w = pill_width - SCALE1(BUTTON_PADDING * 2) - indicator_width;
-		render_list_item_text(screen, &downloader_results_scroll_text, result->title, font.medium,
+		UI_renderListItemText(screen, &downloader_results_scroll_text, result->title, font.medium,
 							  title_x, text_y, title_max_w, is_selected);
 
 		// Duration (always on right, outside pill)
@@ -218,7 +218,7 @@ void render_downloader_results(SDL_Surface* screen, int show_setting,
 }
 
 // Render YouTube download queue (podcast-style with progress/speed/ETA)
-void render_downloader_queue(SDL_Surface* screen, int show_setting,
+void render_downloader_queue(SDL_Surface* screen, IndicatorType show_setting,
 							 int queue_selected, int* queue_scroll) {
 	GFX_clear(screen);
 
@@ -248,7 +248,7 @@ void render_downloader_queue(SDL_Surface* screen, int show_setting,
 	}
 
 	// Two-row pill layout (like podcast download queue)
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 	layout.item_h = SCALE1(PILL_SIZE) * 3 / 2;
 	layout.items_per_page = layout.list_h / layout.item_h;
 	if (layout.items_per_page > 5)
@@ -297,7 +297,7 @@ void render_downloader_queue(SDL_Surface* screen, int show_setting,
 		ListItemBadgedPos pos = render_list_item_pill_badged(screen, &layout, item->title, subtitle, truncated, y, is_selected, badge_width, extra_sub_w);
 
 		// Title text (row 1)
-		render_list_item_text(screen, is_selected ? &downloader_queue_scroll_text : NULL,
+		UI_renderListItemText(screen, is_selected ? &downloader_queue_scroll_text : NULL,
 							  item->title, font.medium,
 							  pos.text_x, pos.text_y,
 							  pos.text_max_width, is_selected);
@@ -370,9 +370,9 @@ void render_downloader_queue(SDL_Surface* screen, int show_setting,
 
 	// Button hints
 	if (qcount > 0) {
-		UI_renderButtonHintBar(screen, (char*[]){"X", "REMOVE", "B", "BACK", "START", "CONTROLS", NULL});
+		UI_renderButtonHintBar(screen, (char*[]){"START", "CONTROLS", "X", "REMOVE", "B", "BACK", NULL});
 	} else {
-		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "START", "CONTROLS", NULL});
+		UI_renderButtonHintBar(screen, (char*[]){"START", "CONTROLS", "B", "BACK", NULL});
 	}
 }
 

@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,8 +69,8 @@ ModuleExitReason PlaylistModule_run(SDL_Surface* screen) {
 	refresh_playlists();
 
 	PlaylistInternalState state = PLAYLIST_INTERNAL_LIST;
-	int dirty = 1;
-	int show_setting = 0;
+	bool dirty = true;
+	IndicatorType show_setting = INDICATOR_NONE;
 
 	while (1) {
 		PAD_poll();
@@ -255,11 +256,11 @@ ModuleExitReason PlaylistModule_run(SDL_Surface* screen) {
 			}
 
 			if (state == PLAYLIST_INTERNAL_LIST) {
-				int items_per_page = calc_list_layout(screen).items_per_page;
+				int items_per_page = UI_calcListLayout(screen).items_per_page;
 				adjust_list_scroll(list_selected, &list_scroll, items_per_page);
 				render_playlist_list(screen, show_setting, playlists, playlist_count, list_selected, list_scroll);
 			} else {
-				int items_per_page = calc_list_layout(screen).items_per_page;
+				int items_per_page = UI_calcListLayout(screen).items_per_page;
 				adjust_list_scroll(detail_selected, &detail_scroll, items_per_page);
 				render_playlist_detail(screen, show_setting, playlists[current_playlist_index].name,
 									   detail_tracks, detail_track_count, detail_selected, detail_scroll);

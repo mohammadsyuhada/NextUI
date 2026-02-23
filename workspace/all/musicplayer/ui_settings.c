@@ -29,11 +29,11 @@ static void format_cache_size(long bytes, char* buf, int buf_size) {
 	}
 }
 
-void render_settings_menu(SDL_Surface* screen, int show_setting, int menu_selected) {
+void render_settings_menu(SDL_Surface* screen, IndicatorType show_setting, int menu_selected) {
 	GFX_clear(screen);
 
 	UI_renderMenuBar(screen, "Settings");
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 
 	// Build dynamic cache labels
 	static char cache_label[128];

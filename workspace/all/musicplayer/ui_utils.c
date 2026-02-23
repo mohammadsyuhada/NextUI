@@ -120,87 +120,6 @@ void render_scroll_indicators(SDL_Surface* screen, int scroll, int items_per_pag
 // Generic List Rendering Helpers
 // ============================================
 
-// Calculate standard list layout based on screen dimensions
-ListLayout calc_list_layout(SDL_Surface* screen) {
-	int hw = screen->w;
-	int hh = screen->h;
-
-	ListLayout layout;
-	layout.list_y = SCALE1(PADDING + PILL_SIZE) + 10;
-	layout.list_h = hh - layout.list_y - SCALE1(PADDING + BUTTON_SIZE + BUTTON_MARGIN);
-	layout.item_h = SCALE1(PILL_SIZE);
-	layout.items_per_page = layout.list_h / layout.item_h;
-	layout.max_width = hw - SCALE1(PADDING * 2);
-
-	return layout;
-}
-
-// Render a list item's text with optional scrolling for selected items
-void render_list_item_text(SDL_Surface* screen, ScrollTextState* scroll_state,
-						   const char* text, TTF_Font* font_param,
-						   int text_x, int text_y, int max_text_width,
-						   bool selected) {
-	SDL_Color text_color = Fonts_getListTextColor(selected);
-
-	// Set clip rect to prevent any text overflow beyond pill boundary
-	// Intersect with existing clip to stay within viewport bounds
-	SDL_Rect old_clip;
-	SDL_GetClipRect(screen, &old_clip);
-	SDL_Rect clip = {text_x, text_y, max_text_width, TTF_FontHeight(font_param)};
-	if (old_clip.w > 0 && old_clip.h > 0) {
-		int left = clip.x > old_clip.x ? clip.x : old_clip.x;
-		int top = clip.y > old_clip.y ? clip.y : old_clip.y;
-		int right = (clip.x + clip.w) < (old_clip.x + old_clip.w) ? (clip.x + clip.w) : (old_clip.x + old_clip.w);
-		int bottom = (clip.y + clip.h) < (old_clip.y + old_clip.h) ? (clip.y + clip.h) : (old_clip.y + old_clip.h);
-		if (right > left && bottom > top) {
-			clip = (SDL_Rect){left, top, right - left, bottom - top};
-		} else {
-			return; // Entirely outside viewport, skip rendering
-		}
-	}
-	SDL_SetClipRect(screen, &clip);
-
-	if (selected && scroll_state) {
-		// Selected item: use scrolling text (GPU mode with pill bg)
-		ScrollText_update(scroll_state, text, font_param, max_text_width,
-						  text_color, screen, text_x, text_y, true);
-	} else {
-		// Non-selected items: static rendering with clipping
-		SDL_Surface* text_surf = TTF_RenderUTF8_Blended(font_param, text, text_color);
-		if (text_surf) {
-			SDL_Rect src = {0, 0, text_surf->w > max_text_width ? max_text_width : text_surf->w, text_surf->h};
-			SDL_BlitSurface(text_surf, &src, screen, &(SDL_Rect){text_x, text_y, 0, 0});
-			SDL_FreeSurface(text_surf);
-		}
-	}
-
-	// Restore previous clip rect
-	if (old_clip.w > 0 && old_clip.h > 0)
-		SDL_SetClipRect(screen, &old_clip);
-	else
-		SDL_SetClipRect(screen, NULL);
-}
-
-// Render a list item's pill background and calculate text position
-ListItemPos render_list_item_pill(SDL_Surface* screen, ListLayout* layout,
-								  const char* text, char* truncated,
-								  int y, bool selected, int prefix_width) {
-	ListItemPos pos;
-
-	// Calculate text width for pill sizing (list items use medium font)
-	pos.pill_width = Fonts_calcListPillWidth(font.medium, text, truncated, layout->max_width, prefix_width);
-
-	// Background pill (sized to text width)
-	SDL_Rect pill_rect = {SCALE1(PADDING), y, pos.pill_width, layout->item_h};
-	Fonts_drawListItemBg(screen, &pill_rect, selected);
-
-	// Calculate text position
-	pos.text_x = SCALE1(PADDING) + SCALE1(BUTTON_PADDING);
-	pos.text_y = y + (layout->item_h - TTF_FontHeight(font.medium)) / 2;
-
-	return pos;
-}
-
 // Render a 2-row list item pill with optional right-side badge area
 // Height is 1.5x PILL_SIZE (same as rich). Title (medium) + subtitle (small) inside pill.
 // When badge_width > 0 and selected: THEME_COLOR2 outer capsule + THEME_COLOR1 inner capsule
@@ -442,14 +361,14 @@ void render_rounded_rect_bg(SDL_Surface* screen, int x, int y, int w, int h, uin
 // ============================================
 
 // Render a simple menu with optional customization callbacks
-void render_simple_menu(SDL_Surface* screen, int show_setting, int menu_selected,
+void render_simple_menu(SDL_Surface* screen, IndicatorType show_setting, int menu_selected,
 						const SimpleMenuConfig* config) {
 	GFX_clear(screen);
 	char truncated[256];
 	char label_buffer[256];
 
 	UI_renderMenuBar(screen, config->title);
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 
 	// Calculate icon size and spacing (scale 24px icons to fit in PILL_SIZE)
 	int icon_size = SCALE1(24);
@@ -496,7 +415,7 @@ void render_simple_menu(SDL_Surface* screen, int show_setting, int menu_selected
 												  text_x, pos.text_y, layout.max_width - icon_offset);
 		}
 		if (!custom_rendered) {
-			render_list_item_text(screen, NULL, truncated, font.large,
+			UI_renderListItemText(screen, NULL, truncated, font.large,
 								  text_x, pos.text_y, layout.max_width - icon_offset, selected);
 		}
 

@@ -38,7 +38,7 @@ static uint32_t overlay_release_time = 0;
 #define OVERLAY_VISIBLE_AFTER_RELEASE_MS 800 // How long overlay stays visible after release
 #define OVERLAY_FORCE_HIDE_DURATION_MS 500	 // How long to keep forcing hide
 
-void ModuleCommon_tickToast(char* message, uint32_t toast_time, int* dirty) {
+void ModuleCommon_tickToast(char* message, uint32_t toast_time, bool* dirty) {
 	if (message[0] == '\0')
 		return;
 	if (SDL_GetTicks() - toast_time < TOAST_DURATION) {
@@ -60,7 +60,7 @@ void ModuleCommon_init(void) {
 	overlay_release_time = 0;
 }
 
-GlobalInputResult ModuleCommon_handleGlobalInput(SDL_Surface* screen, int* show_setting, int app_state) {
+GlobalInputResult ModuleCommon_handleGlobalInput(SDL_Surface* screen, IndicatorType* show_setting, int app_state) {
 	GlobalInputResult result = {false, false, false};
 
 	// Poll USB HID events (earphone buttons)
@@ -305,7 +305,7 @@ void ModuleCommon_quit(void) {
 	PLAT_clearLayers(LAYER_BUFFER);
 }
 
-void ModuleCommon_PWR_update(int* dirty, int* show_setting) {
+void ModuleCommon_PWR_update(bool* dirty, IndicatorType* show_setting) {
 	// Track overlay-triggering buttons for auto-hide (check BEFORE PWR_update)
 	// MENU = brightness, SELECT = color temp, PLUS/MINUS = volume
 	bool overlay_buttons_active = PAD_isPressed(BTN_PLUS) || PAD_isPressed(BTN_MINUS) || PAD_isPressed(BTN_MENU) || PAD_isPressed(BTN_SELECT);
@@ -327,7 +327,7 @@ void ModuleCommon_PWR_update(int* dirty, int* show_setting) {
 		uint32_t elapsed = SDL_GetTicks() - overlay_release_time;
 		if (elapsed >= OVERLAY_VISIBLE_AFTER_RELEASE_MS) {
 			// Visible period passed, now force hide
-			*show_setting = 0;
+			*show_setting = INDICATOR_NONE;
 			*dirty = 1;
 			// Stop forcing after the duration
 			if (elapsed >= OVERLAY_VISIBLE_AFTER_RELEASE_MS + OVERLAY_FORCE_HIDE_DURATION_MS) {

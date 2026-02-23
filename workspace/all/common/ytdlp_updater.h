@@ -1,6 +1,7 @@
 #ifndef __YTDLP_UPDATER_H__
 #define __YTDLP_UPDATER_H__
 
+#include "api.h"
 #include <stdbool.h>
 #include <SDL2/SDL.h>
 
@@ -39,6 +40,6 @@ const YtdlpUpdateStatus* YtdlpUpdater_getUpdateStatus(void);
 bool YtdlpUpdater_isUpdating(void);
 
 // Render the yt-dlp update screen
-void render_ytdlp_updating(SDL_Surface* screen, int show_setting);
+void render_ytdlp_updating(SDL_Surface* screen, IndicatorType show_setting);
 
 #endif

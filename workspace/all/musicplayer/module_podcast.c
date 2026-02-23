@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -84,7 +85,7 @@ static void clear_and_show_screen_off_hint(SDL_Surface* screen) {
 	GFX_flip(screen);
 }
 
-static void return_to_episodes(PodcastInternalState* state, int* dirty) {
+static void return_to_episodes(PodcastInternalState* state, bool* dirty) {
 	Podcast_flushProgress();
 	Podcast_clearArtwork();
 	GFX_clearLayers(LAYER_SCROLLTEXT);
@@ -109,8 +110,8 @@ ModuleExitReason PodcastModule_run(SDL_Surface* screen) {
 	}
 
 	PodcastInternalState state = PODCAST_INTERNAL_MENU;
-	int dirty = 1;
-	int show_setting = 0;
+	bool dirty = true;
+	IndicatorType show_setting = INDICATOR_NONE;
 
 	screen_off = false;
 	ModuleCommon_resetScreenOffHint();

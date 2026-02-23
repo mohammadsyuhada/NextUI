@@ -10,6 +10,7 @@
 #include "wifi.h"
 #include "album_art.h"
 #include "lyrics.h"
+#include <stdbool.h>
 
 // Internal states
 typedef enum {
@@ -35,8 +36,8 @@ typedef enum {
 ModuleExitReason SettingsModule_run(SDL_Surface* screen) {
 	SettingsState state = SETTINGS_STATE_MENU;
 	int menu_selected = 0;
-	int dirty = 1;
-	int show_setting = 0;
+	bool dirty = true;
+	IndicatorType show_setting = INDICATOR_NONE;
 
 	while (1) {
 		PAD_poll();

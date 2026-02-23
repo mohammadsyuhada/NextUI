@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "platform.h"
-#include "include/parson/parson.h"
+#include "parson/parson.h"
 
 // Lyrics cache directory path on SD card
 #define LYRICS_CACHE_DIR SDCARD_PATH "/.cache/lyrics"

@@ -6,21 +6,20 @@
 #include "defines.h"
 #include "api.h"
 
-// ---- Scroll Text (marquee animation) ----
-
+// Scrolling text state for marquee animation
 typedef struct {
-	char text[512];
-	int text_width;
-	int max_width;
-	uint32_t start_time;
-	bool needs_scroll;
-	int scroll_offset;
-	bool use_gpu_scroll;
-	int last_x, last_y;
-	TTF_Font* last_font;
-	SDL_Color last_color;
-	SDL_Surface* cached_scroll_surface;
-	bool scroll_active;
+	char text[512];						// Text to display
+	int text_width;						// Full text width in pixels
+	int max_width;						// Maximum display width
+	uint32_t start_time;				// Animation start time
+	bool needs_scroll;					// True if text is wider than max_width
+	int scroll_offset;					// Current pixel offset for smooth scrolling
+	bool use_gpu_scroll;				// True = use GPU layer (for lists), False = software (for player)
+	int last_x, last_y;					// Last render position (for animate-only mode)
+	TTF_Font* last_font;				// Last font used (for animate-only mode)
+	SDL_Color last_color;				// Last color used (for animate-only mode)
+	SDL_Surface* cached_scroll_surface; // Cached surface for GPU scroll (no bg)
+	bool scroll_active;					// True once GPU scroll has actually started (after delay)
 } ScrollTextState;
 
 void ScrollText_reset(ScrollTextState* state, const char* text,
@@ -31,9 +30,16 @@ void ScrollText_activateAfterDelay(ScrollTextState* state);
 void ScrollText_animateOnly(ScrollTextState* state);
 void ScrollText_render(ScrollTextState* state, TTF_Font* font,
 					   SDL_Color color, SDL_Surface* screen, int x, int y);
-void ScrollText_update(ScrollTextState* state, const char* text,
-					   TTF_Font* font, int max_width, SDL_Color color,
-					   SDL_Surface* screen, int x, int y, bool use_gpu);
+
+// Unified update: checks for text change, resets if needed, and renders
+// use_gpu: true for lists (GPU layer with pill bg), false for player (software, no bg)
+void ScrollText_update(ScrollTextState* state, const char* text, TTF_Font* font,
+					   int max_width, SDL_Color color, SDL_Surface* screen, int x, int y, bool use_gpu);
+
+// GPU scroll without background (for player title)
+// Uses PLAT_drawOnLayer to render to GPU layer without pill background
+void ScrollText_renderGPU_NoBg(ScrollTextState* state, TTF_Font* font,
+							   SDL_Color color, int x, int y);
 
 // ---- List Layout ----
 
@@ -60,6 +66,9 @@ int UI_calcListPillWidth(TTF_Font* font, const char* text, char* truncated,
 void UI_drawListItemBg(SDL_Surface* dst, SDL_Rect* rect, bool selected);
 SDL_Color UI_getListTextColor(bool selected);
 
+// Render a list item's pill background and calculate text position
+// Combines: Fonts_calcListPillWidth + Fonts_drawListItemBg + text position calculation
+// prefix_width: extra width to account for (e.g., checkbox, indicator)
 ListItemPos UI_renderListItemPill(SDL_Surface* screen, ListLayout* layout,
 								  TTF_Font* font, const char* text,
 								  char* truncated, int y, bool selected,
@@ -72,6 +81,7 @@ void UI_renderListItemText(SDL_Surface* screen, ScrollTextState* scroll_state,
 
 // ---- Badged Pill Rendering ----
 
+// Position information returned by render_list_item_pill_badged
 typedef struct {
 	int pill_width;		// Width of the title (inner) pill
 	int text_x;			// X position for title text

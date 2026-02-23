@@ -620,7 +620,7 @@ static ListItemRichPos render_rich_list_item(SDL_Surface* screen, ListLayout* la
 	}
 
 	// Title (row 1, scrollable when selected) — pass full title, not truncated
-	render_list_item_text(screen, selected ? &podcast_title_scroll : NULL,
+	UI_renderListItemText(screen, selected ? &podcast_title_scroll : NULL,
 						  title, font.medium,
 						  pos.title_x, pos.title_y, pos.text_max_width, selected);
 
@@ -638,7 +638,7 @@ static ListItemRichPos render_rich_list_item(SDL_Surface* screen, ListLayout* la
 }
 
 // Render redesigned podcast main page (continue listening + subscriptions with artwork)
-void render_podcast_main_page(SDL_Surface* screen, int show_setting,
+void render_podcast_main_page(SDL_Surface* screen, IndicatorType show_setting,
 							  int selected, int* scroll,
 							  const char* toast_message, uint32_t toast_time) {
 	GFX_clear(screen);
@@ -673,7 +673,7 @@ void render_podcast_main_page(SDL_Surface* screen, int show_setting,
 	int item_y[PODCAST_MAX_CONTINUE_LISTENING + PODCAST_MAX_SUBSCRIPTIONS + 4]; // generous
 	int content_y = 0;
 
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 	ListLayout pill_layout = layout; // Keep original PILL_SIZE item_h for pill rendering
 	// Start content right after page title pill (no extra margin)
 	int base_y = SCALE1(PADDING + PILL_SIZE + 1);
@@ -844,7 +844,7 @@ void render_podcast_main_page(SDL_Surface* screen, int show_setting,
 			char truncated_dl[256];
 			ListItemBadgedPos pos = render_list_item_pill_badged(screen, &pill_layout, "Downloads", dl_subtitle, truncated_dl, y, dl_selected, 0, 0);
 
-			render_list_item_text(screen, dl_selected ? &podcast_title_scroll : NULL,
+			UI_renderListItemText(screen, dl_selected ? &podcast_title_scroll : NULL,
 								  "Downloads", font.medium,
 								  pos.text_x, pos.text_y, pos.text_max_width, dl_selected);
 
@@ -878,7 +878,7 @@ void render_podcast_main_page(SDL_Surface* screen, int show_setting,
 }
 
 // Render the podcast management menu (Y button opens this)
-void render_podcast_manage(SDL_Surface* screen, int show_setting,
+void render_podcast_manage(SDL_Surface* screen, IndicatorType show_setting,
 						   int menu_selected, int subscription_count) {
 	GFX_clear(screen);
 
@@ -888,7 +888,7 @@ void render_podcast_manage(SDL_Surface* screen, int show_setting,
 	UI_renderMenuBar(screen, "Manage Podcasts");
 
 	// Use common list layout
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 
 	for (int i = 0; i < PODCAST_MANAGE_COUNT; i++) {
 		bool selected = (i == menu_selected);
@@ -898,16 +898,16 @@ void render_podcast_manage(SDL_Surface* screen, int show_setting,
 		MenuItemPos pos = render_menu_item_pill(screen, &layout, item_label, truncated, i, selected, 0);
 
 		// Render text using standard list item text (consistent colors and font)
-		render_list_item_text(screen, NULL, truncated, font.large,
+		UI_renderListItemText(screen, NULL, truncated, font.large,
 							  pos.text_x, pos.text_y, layout.max_width, selected);
 	}
 
 	// Button hints
-	UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "SELECT", "START", "CONTROLS", NULL});
+	UI_renderButtonHintBar(screen, (char*[]){"START", "CONTROLS", "B", "BACK", "A", "SELECT", NULL});
 }
 
 // Render Top Shows list
-void render_podcast_top_shows(SDL_Surface* screen, int show_setting,
+void render_podcast_top_shows(SDL_Surface* screen, IndicatorType show_setting,
 							  int selected, int* scroll,
 							  const char* toast_message, uint32_t toast_time) {
 	GFX_clear(screen);
@@ -947,7 +947,7 @@ void render_podcast_top_shows(SDL_Surface* screen, int show_setting,
 	}
 
 	// List layout (rich 2-row items)
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 	layout.item_h = SCALE1(PILL_SIZE) * 3 / 2;
 	layout.items_per_page = layout.list_h / layout.item_h;
 	adjust_list_scroll(selected, scroll, layout.items_per_page);
@@ -979,14 +979,14 @@ void render_podcast_top_shows(SDL_Surface* screen, int show_setting,
 		selected_is_subscribed = Podcast_isSubscribedByItunesId(items[selected].itunes_id);
 	}
 
-	UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", selected_is_subscribed ? "UNSUBSCRIBE" : "SUBSCRIBE", "START", "CONTROLS", NULL});
+	UI_renderButtonHintBar(screen, (char*[]){"START", "CONTROLS", "B", "BACK", "A", selected_is_subscribed ? "UNSUBSCRIBE" : "SUBSCRIBE", NULL});
 
 	// Toast notification
 	render_toast(screen, toast_message, toast_time);
 }
 
 // Render search results
-void render_podcast_search_results(SDL_Surface* screen, int show_setting,
+void render_podcast_search_results(SDL_Surface* screen, IndicatorType show_setting,
 								   int selected, int* scroll,
 								   const char* toast_message, uint32_t toast_time) {
 	GFX_clear(screen);
@@ -1026,7 +1026,7 @@ void render_podcast_search_results(SDL_Surface* screen, int show_setting,
 	}
 
 	// List layout (rich 2-row items)
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 	layout.item_h = SCALE1(PILL_SIZE) * 3 / 2;
 	layout.items_per_page = layout.list_h / layout.item_h;
 	adjust_list_scroll(selected, scroll, layout.items_per_page);
@@ -1058,14 +1058,14 @@ void render_podcast_search_results(SDL_Surface* screen, int show_setting,
 
 	render_scroll_indicators(screen, *scroll, layout.items_per_page, count);
 
-	UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", selected_is_subscribed ? "UNSUBSCRIBE" : "SUBSCRIBE", "START", "CONTROLS", NULL});
+	UI_renderButtonHintBar(screen, (char*[]){"START", "CONTROLS", "B", "BACK", "A", selected_is_subscribed ? "UNSUBSCRIBE" : "SUBSCRIBE", NULL});
 
 	// Toast notification
 	render_toast(screen, toast_message, toast_time);
 }
 
 // Render episode list for a feed
-void render_podcast_episodes(SDL_Surface* screen, int show_setting,
+void render_podcast_episodes(SDL_Surface* screen, IndicatorType show_setting,
 							 int feed_index, int selected, int* scroll,
 							 const char* toast_message, uint32_t toast_time) {
 	GFX_clear(screen);
@@ -1339,7 +1339,7 @@ void render_podcast_episodes(SDL_Surface* screen, int show_setting,
 		ListItemBadgedPos pos = render_list_item_pill_badged(screen, &layout, ep->title, NULL, truncated, y, is_selected, badge_width, 0);
 
 		// Title text (row 1)
-		render_list_item_text(screen, is_selected ? &podcast_title_scroll : NULL,
+		UI_renderListItemText(screen, is_selected ? &podcast_title_scroll : NULL,
 							  ep->title, font.medium,
 							  pos.text_x, pos.text_y,
 							  pos.text_max_width, is_selected);
@@ -1465,7 +1465,7 @@ void render_podcast_episodes(SDL_Surface* screen, int show_setting,
 			? "CANCEL"
 		: selected_is_downloaded ? (selected_is_resumable ? "RESUME" : "PLAY")
 								 : "DOWNLOAD";
-	UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", (char*)action_label, "Y", "REFRESH", "START", "CONTROLS", NULL});
+	UI_renderButtonHintBar(screen, (char*[]){"START", "CONTROLS", "B", "BACK", "A", (char*)action_label, "Y", "REFRESH", NULL});
 
 	// Toast notification
 	render_toast(screen, toast_message, toast_time);
@@ -1498,7 +1498,7 @@ static void format_eta(char* buf, int buf_size, int seconds) {
 }
 
 // Render download queue view
-void render_podcast_download_queue(SDL_Surface* screen, int show_setting,
+void render_podcast_download_queue(SDL_Surface* screen, IndicatorType show_setting,
 								   int selected, int* scroll,
 								   const char* toast_message, uint32_t toast_time) {
 	GFX_clear(screen);
@@ -1535,7 +1535,7 @@ void render_podcast_download_queue(SDL_Surface* screen, int show_setting,
 	}
 
 	// List layout — use taller item height for two-row pills (title + subtitle)
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 	layout.item_h = SCALE1(PILL_SIZE) * 3 / 2;
 	layout.items_per_page = layout.list_h / layout.item_h;
 	if (layout.items_per_page > 5)
@@ -1554,7 +1554,7 @@ void render_podcast_download_queue(SDL_Surface* screen, int show_setting,
 		ListItemBadgedPos pos = render_list_item_pill_badged(screen, &layout, item->episode_title, item->feed_title, truncated, y, is_selected, badge_width, 0);
 
 		// Title text (row 1)
-		render_list_item_text(screen, is_selected ? &podcast_title_scroll : NULL,
+		UI_renderListItemText(screen, is_selected ? &podcast_title_scroll : NULL,
 							  item->episode_title, font.medium,
 							  pos.text_x, pos.text_y,
 							  pos.text_max_width, is_selected);
@@ -1668,7 +1668,7 @@ void render_podcast_download_queue(SDL_Surface* screen, int show_setting,
 }
 
 // Render now playing screen for podcast (matches radio/music player style)
-void render_podcast_playing(SDL_Surface* screen, int show_setting,
+void render_podcast_playing(SDL_Surface* screen, IndicatorType show_setting,
 							int feed_index, int episode_index) {
 	GFX_clear(screen);
 

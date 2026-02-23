@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -117,8 +118,8 @@ ModuleExitReason RadioModule_run(SDL_Surface* screen) {
 	Radio_init();
 
 	RadioInternalState state = RADIO_INTERNAL_LIST;
-	int dirty = 1;
-	int show_setting = 0;
+	bool dirty = true;
+	IndicatorType show_setting = INDICATOR_NONE;
 
 	screen_off = false;
 	ModuleCommon_resetScreenOffHint();

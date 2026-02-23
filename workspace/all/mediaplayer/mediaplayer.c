@@ -1,0 +1,148 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <signal.h>
+#include <time.h>
+#include <msettings.h>
+
+#include "vp_defines.h"
+#include "api.h"
+#include "utils.h"
+#include "config.h"
+
+#include "ui_icons.h"
+
+#include "module_common.h"
+#include "module_menu.h"
+#include "module_player.h"
+#include "module_youtube.h"
+#include "module_subscriptions.h"
+#include "module_iptv.h"
+#include "module_settings.h"
+#include "settings.h"
+#include "ytdlp_updater.h"
+#include "youtube.h"
+#include "subscriptions.h"
+#include "iptv.h"
+#include "iptv_curated.h"
+#include "keyboard.h"
+
+// Global quit flag
+static bool quit = false;
+static SDL_Surface* screen;
+
+static void sigHandler(int sig) {
+	switch (sig) {
+	case SIGINT:
+	case SIGTERM:
+		quit = true;
+		break;
+	default:
+		break;
+	}
+}
+
+int main(int argc, char* argv[]) {
+	(void)argc;
+	(void)argv;
+
+	screen = GFX_init(MODE_MAIN);
+	// Show splash screen immediately while subsystems initialize
+	{
+		GFX_clear(screen);
+		SDL_Surface* title = TTF_RenderUTF8_Blended(font.title, "Media Player", COLOR_WHITE);
+		if (title) {
+			SDL_BlitSurface(title, NULL, screen, &(SDL_Rect){(screen->w - title->w) / 2, screen->h / 2 - title->h});
+			SDL_FreeSurface(title);
+		}
+		SDL_Surface* loading = TTF_RenderUTF8_Blended(font.small, "Loading...", COLOR_GRAY);
+		if (loading) {
+			SDL_BlitSurface(loading, NULL, screen, &(SDL_Rect){(screen->w - loading->w) / 2, screen->h / 2 + SCALE1(4)});
+			SDL_FreeSurface(loading);
+		}
+		GFX_flip(screen);
+	}
+
+	InitSettings();
+	PAD_init();
+	PWR_init();
+	// No WIFI_init at startup - WiFi enabled on demand
+	Icons_init();
+
+	signal(SIGINT, sigHandler);
+	signal(SIGTERM, sigHandler);
+
+	// Initialize common module (global input handling)
+	ModuleCommon_init();
+
+	// Initialize app-specific settings
+	Settings_init();
+
+	// Initialize yt-dlp updater
+	YtdlpUpdater_init();
+
+	// Initialize YouTube module
+	YouTube_init();
+	Keyboard_init();
+
+	// Initialize subscriptions (loads from disk)
+	Subscriptions_init();
+
+	// Initialize IPTV (loads playlists + cached channels)
+	IPTV_init();
+	IPTV_curated_init();
+
+	// Main application loop
+	while (!quit) {
+		// Run main menu - returns selected item or MENU_QUIT
+		int selection = MenuModule_run(screen);
+
+		if (selection == MENU_QUIT) {
+			quit = true;
+			continue;
+		}
+
+		// Run the selected module
+		ModuleExitReason reason = MODULE_EXIT_TO_MENU;
+
+		switch (selection) {
+		case MENU_LOCAL:
+			reason = PlayerModule_run(screen);
+			break;
+		case MENU_YOUTUBE:
+			reason = YouTubeModule_run(screen);
+			break;
+		case MENU_IPTV:
+			reason = IPTVModule_run(screen);
+			break;
+		case MENU_SETTINGS:
+			reason = SettingsModule_run(screen);
+			break;
+		}
+
+		// Re-enable autosleep when returning to main menu
+		ModuleCommon_setAutosleepDisabled(false);
+
+		if (reason == MODULE_EXIT_QUIT) {
+			quit = true;
+		}
+	}
+
+	IPTV_curated_cleanup();
+	IPTV_cleanup();
+	Subscriptions_cleanup();
+	YouTube_cleanup();
+	YtdlpUpdater_cleanup();
+	Settings_quit();
+	ModuleCommon_quit();
+	Icons_quit();
+
+	QuitSettings();
+	PWR_quit();
+	PAD_quit();
+	GFX_quit();
+
+	return EXIT_SUCCESS;
+}

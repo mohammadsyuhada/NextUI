@@ -24,7 +24,7 @@
 // SDCARD_PATH is defined in platform.h via api.h
 
 // JSON library
-#include "include/parson/parson.h"
+#include "parson/parson.h"
 
 // Timezone to country code mapping for Apple Podcast charts
 typedef struct {

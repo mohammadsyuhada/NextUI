@@ -11,7 +11,7 @@
 // Scroll text state for selected item in playlist lists
 static ScrollTextState playlist_scroll = {0};
 
-void render_playlist_list(SDL_Surface* screen, int show_setting,
+void render_playlist_list(SDL_Surface* screen, IndicatorType show_setting,
 						  PlaylistInfo* playlists, int count,
 						  int selected, int scroll) {
 	GFX_clear(screen);
@@ -28,7 +28,7 @@ void render_playlist_list(SDL_Surface* screen, int show_setting,
 		return;
 	}
 
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 
 	for (int i = 0; i < layout.items_per_page && (scroll + i) < count; i++) {
 		int idx = scroll + i;
@@ -39,9 +39,9 @@ void render_playlist_list(SDL_Surface* screen, int show_setting,
 		char display[256];
 		snprintf(display, sizeof(display), "%s (%d)", pl->name, pl->track_count);
 
-		ListItemPos pos = render_list_item_pill(screen, &layout, display, truncated, y, is_selected, 0);
+		ListItemPos pos = UI_renderListItemPill(screen, &layout, font.medium, display, truncated, y, is_selected, 0);
 		int available_width = pos.pill_width - SCALE1(BUTTON_PADDING * 2);
-		render_list_item_text(screen, &playlist_scroll, display, font.medium,
+		UI_renderListItemText(screen, &playlist_scroll, display, font.medium,
 							  pos.text_x, pos.text_y, available_width, is_selected);
 	}
 
@@ -50,7 +50,7 @@ void render_playlist_list(SDL_Surface* screen, int show_setting,
 	UI_renderButtonHintBar(screen, (char*[]){"START", "CONTROLS", "B", "BACK", "A", "SELECT", NULL});
 }
 
-void render_playlist_detail(SDL_Surface* screen, int show_setting,
+void render_playlist_detail(SDL_Surface* screen, IndicatorType show_setting,
 							const char* playlist_name,
 							PlaylistTrack* tracks, int count,
 							int selected, int scroll) {
@@ -70,7 +70,7 @@ void render_playlist_detail(SDL_Surface* screen, int show_setting,
 		return;
 	}
 
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 
 	// Icon size and spacing (same as browser)
 	int icon_size = Icons_isLoaded() ? SCALE1(24) : 0;
@@ -86,7 +86,7 @@ void render_playlist_detail(SDL_Surface* screen, int show_setting,
 		PlaylistTrack* track = &tracks[idx];
 		snprintf(display, sizeof(display), "%s", track->name);
 
-		ListItemPos pos = render_list_item_pill(screen, &layout, display, truncated, y, is_selected, icon_offset);
+		ListItemPos pos = UI_renderListItemPill(screen, &layout, font.medium, display, truncated, y, is_selected, icon_offset);
 
 		// Render icon
 		if (Icons_isLoaded()) {
@@ -101,7 +101,7 @@ void render_playlist_detail(SDL_Surface* screen, int show_setting,
 
 		int text_x = pos.text_x + icon_offset;
 		int available_width = pos.pill_width - SCALE1(BUTTON_PADDING * 2) - icon_offset;
-		render_list_item_text(screen, &playlist_scroll, display, font.medium,
+		UI_renderListItemText(screen, &playlist_scroll, display, font.medium,
 							  text_x, pos.text_y, available_width, is_selected);
 	}
 

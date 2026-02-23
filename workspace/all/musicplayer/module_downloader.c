@@ -37,7 +37,7 @@ ModuleExitReason DownloaderModule_run(SDL_Surface* screen) {
 	Downloader_init();
 
 	// Check WiFi before entering
-	int show_setting = 0;
+	IndicatorType show_setting = INDICATOR_NONE;
 	if (!Downloader_isAvailable()) {
 		Downloader_cleanup();
 		LibraryModule_setToast("Downloader not available");
@@ -50,7 +50,7 @@ ModuleExitReason DownloaderModule_run(SDL_Surface* screen) {
 	}
 
 	DownloaderInternalState state = DOWNLOADER_INTERNAL_MENU;
-	int dirty = 1;
+	bool dirty = true;
 	char search_query[256] = "";
 
 	menu_selected = 0;

@@ -12,7 +12,7 @@
 #include "radio_curated.h"
 
 // Render the radio station list
-void render_radio_list(SDL_Surface* screen, int show_setting,
+void render_radio_list(SDL_Surface* screen, IndicatorType show_setting,
 					   int radio_selected, int* radio_scroll,
 					   const char* toast_message, uint32_t toast_time) {
 	GFX_clear(screen);
@@ -34,7 +34,7 @@ void render_radio_list(SDL_Surface* screen, int show_setting,
 	}
 
 	// Use common list layout calculation
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 	adjust_list_scroll(radio_selected, radio_scroll, layout.items_per_page);
 
 	for (int i = 0; i < layout.items_per_page && *radio_scroll + i < station_count; i++) {
@@ -45,10 +45,10 @@ void render_radio_list(SDL_Surface* screen, int show_setting,
 		int y = layout.list_y + i * layout.item_h;
 
 		// Render pill background and get text position
-		ListItemPos pos = render_list_item_pill(screen, &layout, station->name, truncated, y, selected, 0);
+		ListItemPos pos = UI_renderListItemPill(screen, &layout, font.medium, station->name, truncated, y, selected, 0);
 
 		// Station name (no scrolling for radio list)
-		render_list_item_text(screen, NULL, station->name, font.medium,
+		UI_renderListItemText(screen, NULL, station->name, font.medium,
 							  pos.text_x, pos.text_y, layout.max_width, selected);
 
 		// Genre (if available)
@@ -101,7 +101,7 @@ static RadioStation* get_station_by_index(int index) {
 }
 
 // Render the radio playing screen
-void render_radio_playing(SDL_Surface* screen, int show_setting, int radio_selected) {
+void render_radio_playing(SDL_Surface* screen, IndicatorType show_setting, int radio_selected) {
 	GFX_clear(screen);
 
 	// Render album art as triangular background (if available and not being fetched)
@@ -305,7 +305,7 @@ void render_radio_playing(SDL_Surface* screen, int show_setting, int radio_selec
 }
 
 // Render add stations - country selection screen
-void render_radio_add(SDL_Surface* screen, int show_setting,
+void render_radio_add(SDL_Surface* screen, IndicatorType show_setting,
 					  int add_country_selected, int* add_country_scroll) {
 	GFX_clear(screen);
 
@@ -319,7 +319,7 @@ void render_radio_add(SDL_Surface* screen, int show_setting,
 	const CuratedCountry* countries = Radio_getCuratedCountries();
 
 	// Use common list layout calculation
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 	adjust_list_scroll(add_country_selected, add_country_scroll, layout.items_per_page);
 
 	for (int i = 0; i < layout.items_per_page && *add_country_scroll + i < country_count; i++) {
@@ -330,10 +330,10 @@ void render_radio_add(SDL_Surface* screen, int show_setting,
 		int y = layout.list_y + i * layout.item_h;
 
 		// Render pill background and get text position
-		ListItemPos pos = render_list_item_pill(screen, &layout, country->name, truncated, y, selected, 0);
+		ListItemPos pos = UI_renderListItemPill(screen, &layout, font.medium, country->name, truncated, y, selected, 0);
 
 		// Country name
-		render_list_item_text(screen, NULL, country->name, font.medium,
+		UI_renderListItemText(screen, NULL, country->name, font.medium,
 							  pos.text_x, pos.text_y, layout.max_width, selected);
 
 		// Station count on right
@@ -355,7 +355,7 @@ void render_radio_add(SDL_Surface* screen, int show_setting,
 }
 
 // Render add stations - station selection screen
-void render_radio_add_stations(SDL_Surface* screen, int show_setting,
+void render_radio_add_stations(SDL_Surface* screen, IndicatorType show_setting,
 							   const char* country_code,
 							   int add_station_selected, int* add_station_scroll,
 							   const int* sorted_indices, int sorted_count,
@@ -383,7 +383,7 @@ void render_radio_add_stations(SDL_Surface* screen, int show_setting,
 	const CuratedStation* stations = Radio_getCuratedStations(country_code, &station_count);
 
 	// Use common list layout calculation
-	ListLayout layout = calc_list_layout(screen);
+	ListLayout layout = UI_calcListLayout(screen);
 	adjust_list_scroll(add_station_selected, add_station_scroll, layout.items_per_page);
 
 	// Determine if the currently selected station is already added
@@ -436,7 +436,7 @@ void render_radio_add_stations(SDL_Surface* screen, int show_setting,
 		}
 
 		// Station name
-		render_list_item_text(screen, NULL, station->name, font.medium,
+		UI_renderListItemText(screen, NULL, station->name, font.medium,
 							  text_x + prefix_width, text_y, name_max_width, selected);
 
 		// Genre on right
@@ -460,7 +460,7 @@ void render_radio_add_stations(SDL_Surface* screen, int show_setting,
 }
 
 // Render help/instructions screen
-void render_radio_help(SDL_Surface* screen, int show_setting, int* help_scroll) {
+void render_radio_help(SDL_Surface* screen, IndicatorType show_setting, int* help_scroll) {
 	GFX_clear(screen);
 
 	int hw = screen->w;

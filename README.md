@@ -57,15 +57,15 @@ New Features:
     - Disable system sleep (useful for ADB)
     - Clean up macOS-specific dotfiles (if any were copied)
     - Quickly turn off Developer Mode from the quick menu
-- Built-in [Music Player](https://github.com/mohammadsyuhada/nextui-music-player)
 - Added smoother slide transition animations (can be disabled in Settings)
     - `Quick Menu` slides down on enter and slides up on exit.
     - `Game Switcher` slides up on enter and slides down on exit
     - `Page Navigation` slides in from the right on enter and slides out to the left on exit.
+- Built-in [Music Player](https://github.com/mohammadsyuhada/nextui-music-player)
+- Built-in [Media Player](https://github.com/mohammadsyuhada/nextui-video-player)
 
 Upcoming Features:
 - Integration with [Netplay](https://github.com/mohammadsyuhada/nextui-netplay)
-- Built-in [Video Player](https://github.com/mohammadsyuhada/nextui-video-player)
 
 Ongoing focus areas:
 

@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -264,7 +265,7 @@ static bool browser_play_entry(FileEntry* entry) {
 }
 
 // Handle input in browser state. Returns true if module should exit to menu.
-static bool handle_browser_input(PlayerInternalState* state, int* dirty) {
+static bool handle_browser_input(PlayerInternalState* state, bool* dirty) {
 	if (PAD_justPressed(BTN_B)) {
 		if (strcmp(browser.current_path, MUSIC_PATH) != 0) {
 			char* last_slash = strrchr(browser.current_path, '/');
@@ -324,7 +325,7 @@ static bool handle_browser_input(PlayerInternalState* state, int* dirty) {
 }
 
 // Handle input in playing state. Returns true when main loop should continue (skip render).
-static bool handle_playing_input(SDL_Surface* screen, PlayerInternalState* state, int* dirty) {
+static bool handle_playing_input(SDL_Surface* screen, PlayerInternalState* state, bool* dirty) {
 	// Handle screen off hint timeout
 	if (ModuleCommon_isScreenOffHintActive()) {
 		if (ModuleCommon_processScreenOffHintTimeout()) {
@@ -482,8 +483,8 @@ ModuleExitReason PlayerModule_run(SDL_Surface* screen) {
 	load_directory(browser.current_path[0] ? browser.current_path : MUSIC_PATH);
 
 	PlayerInternalState state = PLAYER_INTERNAL_BROWSER;
-	int dirty = 1;
-	int show_setting = 0;
+	bool dirty = true;
+	IndicatorType show_setting = INDICATOR_NONE;
 
 	screen_off = false;
 	ModuleCommon_resetScreenOffHint();
@@ -680,8 +681,8 @@ ModuleExitReason PlayerModule_runWithPlaylist(SDL_Surface* screen,
 		return MODULE_EXIT_TO_MENU;
 	}
 
-	int dirty = 1;
-	int show_setting = 0;
+	bool dirty = true;
+	IndicatorType show_setting = INDICATOR_NONE;
 	screen_off = false;
 	ModuleCommon_resetScreenOffHint();
 	ModuleCommon_recordInputTime();
@@ -943,8 +944,8 @@ ModuleExitReason PlayerModule_runResume(SDL_Surface* screen, const ResumeState* 
 		}
 
 		// Use the shared playing loop via handle_playing_input
-		int dirty = 1;
-		int show_setting = 0;
+		bool dirty = true;
+		IndicatorType show_setting = INDICATOR_NONE;
 		screen_off = false;
 		ModuleCommon_resetScreenOffHint();
 		ModuleCommon_recordInputTime();
