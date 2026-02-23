@@ -55,8 +55,6 @@ main() {
     trap "cleanup" EXIT INT TERM HUP QUIT
 
     ROM="$1"
-    mkdir -p "$BIOS_PATH/$EMU_TAG"
-    mkdir -p "$SAVES_PATH/$EMU_TAG"
     HOME="$USERDATA_PATH"
     cd "$HOME" || exit 1
 

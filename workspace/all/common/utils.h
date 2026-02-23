@@ -40,6 +40,7 @@ void normalizeNewline(char* line);
 void trimTrailingNewlines(char* line);
 void trimSortingMeta(char** str);
 
+void mkdir_p(const char* path);
 bool exists(char* path);
 void touch(char* path);
 int toggle(char* path); // creates or removes file

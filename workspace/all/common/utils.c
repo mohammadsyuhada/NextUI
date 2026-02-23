@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <stdint.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include "defines.h"
 #include "utils.h"
@@ -464,6 +465,20 @@ void trimSortingMeta(char** str) { // eg. `001) `
 }
 
 ///////////////////////////////////////
+
+void mkdir_p(const char* path) {
+	char tmp[MAX_PATH];
+	strncpy(tmp, path, sizeof(tmp) - 1);
+	tmp[sizeof(tmp) - 1] = '\0';
+	for (char* p = tmp + 1; *p; p++) {
+		if (*p == '/') {
+			*p = '\0';
+			mkdir(tmp, 0777);
+			*p = '/';
+		}
+	}
+	mkdir(tmp, 0777);
+}
 
 bool exists(char* path) {
 	return access(path, F_OK) == 0;

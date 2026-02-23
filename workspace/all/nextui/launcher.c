@@ -40,6 +40,11 @@ static int runCommand(const char* path, char* const argv[]) {
 	waitpid(pid, &status, 0);
 	return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 }
+static void runCommandAsync(const char* path, char* const argv[]) {
+	pid_t pid;
+	posix_spawn(&pid, path, NULL, NULL, argv, environ);
+	// Fire-and-forget: orphaned child is reaped by init
+}
 
 ///////////////////////////////////////
 
@@ -160,7 +165,7 @@ int autoResume(void) {
 		return 0;
 
 	char* gametimectl_argv[] = {"gametimectl.elf", "start", sd_path, NULL};
-	runCommand("gametimectl.elf", gametimectl_argv);
+	runCommandAsync("gametimectl.elf", gametimectl_argv);
 
 	char escaped_emu[MAX_PATH];
 	char escaped_sd[MAX_PATH];
@@ -177,7 +182,15 @@ int autoResume(void) {
 }
 
 void openPak(char* path) {
-	saveLast(path);
+	// If launched from root and the pak is a shortcut, save root path
+	// so the user returns to main menu instead of the tools folder.
+	char* save_path = path;
+	if (exactMatch(top->path, SDCARD_PATH) && prefixMatch(SDCARD_PATH, save_path)) {
+		if (Shortcuts_exists(save_path + strlen(SDCARD_PATH))) {
+			save_path = SDCARD_PATH;
+		}
+	}
+	saveLast(save_path);
 
 	char escaped_path[MAX_PATH];
 	strncpy(escaped_path, path, sizeof(escaped_path) - 1);
@@ -244,9 +257,22 @@ void openRom(char* path, char* last) {
 	char emu_path[MAX_PATH];
 	getEmuPath(emu_name, emu_path);
 
-	// NOTE: escapeSingleQuotes() modifies the passed string
-	// so we need to save the path before we call that
-	Recents_add(recent_path, Recents_getAlias()); // yiiikes
+	// Queue the launch command FIRST to minimize delay — queueNext writes
+	// /tmp/next and sets quit=true so the main loop exits ASAP.
+	// escapeSingleQuotes modifies its buffer, so use separate copies.
+	char escaped_emu[MAX_PATH];
+	char escaped_sd[MAX_PATH];
+	strncpy(escaped_emu, emu_path, sizeof(escaped_emu) - 1);
+	escaped_emu[sizeof(escaped_emu) - 1] = '\0';
+	strncpy(escaped_sd, sd_path, sizeof(escaped_sd) - 1);
+	escaped_sd[sizeof(escaped_sd) - 1] = '\0';
+
+	char cmd[MAX_PATH];
+	snprintf(cmd, sizeof(cmd), "'%s' '%s'", escapeSingleQuotes(escaped_emu, sizeof(escaped_emu)), escapeSingleQuotes(escaped_sd, sizeof(escaped_sd)));
+	queueNext(cmd);
+
+	// Non-critical bookkeeping — happens after quit is already set
+	Recents_add(recent_path, Recents_getAlias());
 
 	// For multi-disc games in a subfolder, save the game folder instead of
 	// the disc file path so we return to the console folder on next launch.
@@ -278,18 +304,7 @@ void openRom(char* path, char* last) {
 	saveLast(save_path);
 
 	char* gametimectl_argv[] = {"gametimectl.elf", "start", sd_path, NULL};
-	runCommand("gametimectl.elf", gametimectl_argv);
-
-	char escaped_emu[MAX_PATH];
-	char escaped_sd[MAX_PATH];
-	strncpy(escaped_emu, emu_path, sizeof(escaped_emu) - 1);
-	escaped_emu[sizeof(escaped_emu) - 1] = '\0';
-	strncpy(escaped_sd, sd_path, sizeof(escaped_sd) - 1);
-	escaped_sd[sizeof(escaped_sd) - 1] = '\0';
-
-	char cmd[MAX_PATH];
-	snprintf(cmd, sizeof(cmd), "'%s' '%s'", escapeSingleQuotes(escaped_emu, sizeof(escaped_emu)), escapeSingleQuotes(escaped_sd, sizeof(escaped_sd)));
-	queueNext(cmd);
+	runCommandAsync("gametimectl.elf", gametimectl_argv);
 }
 
 static bool isDirectSubdirectory(const Directory* parent, const char* child_path) {

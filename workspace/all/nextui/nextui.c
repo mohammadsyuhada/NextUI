@@ -528,10 +528,6 @@ int main(int argc, char* argv[]) {
 				GFX_clearLayers(LAYER_ALL);
 				GFX_clear(screen);
 				GFX_flipHidden();
-				if (tmpOldScreen)
-					GFX_animateSurfaceOpacity(tmpOldScreen, 0, 0, screen->w, screen->h,
-											  255, 0, CFG_getMenuTransitions() ? 150 : 20,
-											  LAYER_BACKGROUND);
 			} else if (currentScreen == SCREEN_GAMESWITCHER) {
 				GameSwitcher_render(lastScreen, blackBG, gsanimdir);
 				lastScreen = SCREEN_GAMESWITCHER;
@@ -818,6 +814,14 @@ int main(int argc, char* argv[]) {
 			sleep(4);
 			quit = true;
 		}
+	}
+
+	// Fast exit when launching a game — skip full cleanup to minimize
+	// delay. The OS reclaims all memory/FDs on process exit. The parent
+	// shell script reads /tmp/next only after nextui.elf exits.
+	if (startgame) {
+		GFX_quit();
+		_exit(0);
 	}
 
 	Menu_quit();

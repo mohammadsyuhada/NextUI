@@ -493,9 +493,6 @@ void cleanupImageLoaderPool(void) {
 		thumbLoadThread = NULL;
 	}
 
-	// Small delay to ensure llvmpipe/OpenGL threads have completed any pending operations
-	SDL_Delay(10);
-
 	// Drain any residual tasks left in queues
 	while (bgQueue.head) {
 		TaskNode* n = bgQueue.head;
