@@ -283,7 +283,7 @@ SDL_Surface* GFX_init(int mode);
 #define GFX_captureRendererToSurface PLAT_captureRendererToSurface //(void)
 #define GFX_animateSurface PLAT_animateSurface					   //(SDL_Surface *inputSurface,int x, int y)
 #define GFX_animateSurfaceOpacity PLAT_animateSurfaceOpacity	   //(SDL_Surface *inputSurface,int x, int y)
-#define GFX_animateAndFadeSurface PLAT_animateAndFadeSurface	   //(SDL_Surface *inputSurface,int x, int y)
+#define GFX_animateSlidePages PLAT_animateSlidePages
 #define GFX_textShouldScroll PLAT_textShouldScroll				   // (TTF_Font* font, const char* in_name,int max_width, SDL_mutex* fontMutex);
 #define GFX_resetScrollText PLAT_resetScrollText				   // (void);
 #define GFX_scrollTextTexture PLAT_scrollTextTexture			   // (TTF_Font* font, const char* in_name,int x, int y, int w, int h, SDL_Color color, float transparency, SDL_mutex* fontMutex);
@@ -650,12 +650,12 @@ void PLAT_animateSurface(
 	int start_opacity,
 	int target_opacity,
 	int layer);
-void PLAT_animateAndFadeSurface(
-	SDL_Surface* inputSurface,
-	int x, int y, int target_x, int target_y, int w, int h, int duration_ms,
-	SDL_Surface* fadeSurface,
-	int fade_x, int fade_y, int fade_w, int fade_h,
-	int start_opacity, int target_opacity, int layer);
+void PLAT_animateSlidePages(
+	SDL_Surface* outSurface,
+	int out_x, int out_y, int out_target_x, int out_target_y,
+	SDL_Surface* inSurface,
+	int in_x, int in_y, int in_target_x, int in_target_y,
+	int w, int h, int duration_ms, int layer);
 
 void PLAT_animateSurfaceOpacity(SDL_Surface* inputSurface, int x, int y, int w, int h,
 								int start_opacity, int target_opacity, int duration_ms, int layer);

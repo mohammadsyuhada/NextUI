@@ -66,17 +66,18 @@ static ShortcutAction confirm_shortcut_action = SHORTCUT_NONE;
 static Entry* confirm_shortcut_entry = NULL;
 
 SDL_Surface* screen = NULL;
+static SDL_Surface* blackBG = NULL;
 static bool had_thumb = false;
 static int ox;
 
 static void updateBackgroundLayer(void) {
 	SDL_LockMutex(bgMutex);
 	if (folderbgchanged) {
+		GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
+						LAYER_BACKGROUND);
 		if (folderbgbmp)
 			GFX_drawOnLayer(folderbgbmp, 0, 0, screen->w, screen->h, 1.0f, 0,
 							LAYER_BACKGROUND);
-		else
-			GFX_clearLayers(LAYER_BACKGROUND);
 		folderbgchanged = 0;
 	}
 	SDL_UnlockMutex(bgMutex);
@@ -172,6 +173,7 @@ static int GameList_handleInput(unsigned long now, int currentScreen,
 
 	if (PAD_tappedMenu(now)) {
 		currentScreen = SCREEN_QUICKMENU;
+		animationdirection = SLIDE_DOWN;
 		dirty = true;
 		folderbgchanged = 1;
 		if (!HAS_POWER_BUTTON && !simple_mode)
@@ -180,6 +182,7 @@ static int GameList_handleInput(unsigned long now, int currentScreen,
 	} else if (PAD_tappedSelect(now) && confirm_shortcut_action == SHORTCUT_NONE) {
 		currentScreen = SCREEN_GAMESWITCHER;
 		GameSwitcher_resetSelection();
+		animationdirection = SLIDE_UP;
 		dirty = true;
 		return currentScreen;
 	} else if (total > 0 && confirm_shortcut_action == SHORTCUT_NONE) {
@@ -397,7 +400,7 @@ int main(int argc, char* argv[]) {
 	char folderBgPath[1024] = {0};
 	folderbgbmp = NULL;
 
-	SDL_Surface* blackBG = SDL_CreateRGBSurfaceWithFormat(
+	blackBG = SDL_CreateRGBSurfaceWithFormat(
 		0, screen->w, screen->h, screen->format->BitsPerPixel,
 		screen->format->format);
 	if (blackBG)
@@ -428,8 +431,10 @@ int main(int argc, char* argv[]) {
 				dirty = true;
 			if (qmr.folderbgchanged)
 				folderbgchanged = 1;
-			if (qmr.screen != SCREEN_QUICKMENU)
+			if (qmr.screen != SCREEN_QUICKMENU) {
 				currentScreen = qmr.screen;
+				animationdirection = SLIDE_UP;
+			}
 		} else if (currentScreen == SCREEN_GAMESWITCHER) {
 			GameSwitcherResult gsr = GameSwitcher_handleInput(now);
 			if (gsr.dirty)
@@ -438,8 +443,11 @@ int main(int argc, char* argv[]) {
 				folderbgchanged = 1;
 			if (gsr.startgame)
 				startgame = true;
-			if (gsr.screen != SCREEN_GAMESWITCHER)
+			if (gsr.screen != SCREEN_GAMESWITCHER) {
 				currentScreen = gsr.screen;
+				if (currentScreen == SCREEN_GAMELIST)
+					animationdirection = SLIDE_DOWN;
+			}
 			gsanimdir = gsr.gsanimdir;
 		} else {
 			int prevScreen = currentScreen;
@@ -454,9 +462,7 @@ int main(int argc, char* argv[]) {
 
 		if (dirty) {
 			SDL_Surface* tmpOldScreen = NULL;
-			if (animationdirection != ANIM_NONE ||
-				(lastScreen == SCREEN_GAMELIST &&
-				 currentScreen == SCREEN_GAMESWITCHER)) {
+			if (animationdirection != ANIM_NONE) {
 				tmpOldScreen = GFX_captureRendererToSurface();
 				if (tmpOldScreen)
 					SDL_SetSurfaceBlendMode(tmpOldScreen, SDL_BLENDMODE_BLEND);
@@ -464,6 +470,8 @@ int main(int argc, char* argv[]) {
 
 			if (lastScreen == SCREEN_GAME || lastScreen == SCREEN_OFF) {
 				GFX_clearLayers(LAYER_ALL);
+				GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
+								LAYER_BACKGROUND);
 			} else {
 				GFX_clearLayers(LAYER_TRANSITION);
 				if (lastScreen != SCREEN_GAMELIST)
@@ -474,11 +482,31 @@ int main(int argc, char* argv[]) {
 			GFX_clear(screen);
 
 			// render top menu bar
-			const char* menu_title = stack->count > 1 ? top->name : "NextUI Redux";
+			const char* menu_title;
+			if (currentScreen == SCREEN_GAMESWITCHER)
+				menu_title = GameSwitcher_getSelectedName();
+			else
+				menu_title = stack->count > 1 ? top->name : "NextUI Redux";
 			int ow = UI_renderMenuBar(screen, menu_title);
+
+			// capture menu bar for fixed overlay during animation
+			SDL_Surface* menuBarSurface = NULL;
+			if (animationdirection != ANIM_NONE) {
+				int bar_h = SCALE1(BUTTON_SIZE) + SCALE1(BUTTON_MARGIN * 2);
+				menuBarSurface = SDL_CreateRGBSurfaceWithFormat(
+					0, screen->w, bar_h, screen->format->BitsPerPixel,
+					screen->format->format);
+				if (menuBarSurface) {
+					SDL_FillRect(menuBarSurface, NULL,
+								 SDL_MapRGBA(menuBarSurface->format, 0, 0, 0, 255));
+					SDL_BlitSurface(screen, &(SDL_Rect){0, 0, screen->w, bar_h},
+									menuBarSurface, NULL);
+				}
+			}
+
 			if (currentScreen == SCREEN_QUICKMENU) {
 				QuickMenu_render(lastScreen, show_setting, ow,
-								 folderBgPath, sizeof(folderBgPath));
+								 folderBgPath, sizeof(folderBgPath), blackBG);
 				lastScreen = SCREEN_QUICKMENU;
 			} else if (startgame) {
 				GFX_clearLayers(LAYER_ALL);
@@ -489,7 +517,7 @@ int main(int argc, char* argv[]) {
 											  255, 0, CFG_getMenuTransitions() ? 150 : 20,
 											  LAYER_BACKGROUND);
 			} else if (currentScreen == SCREEN_GAMESWITCHER) {
-				GameSwitcher_render(lastScreen, blackBG, ow, gsanimdir, tmpOldScreen);
+				GameSwitcher_render(lastScreen, blackBG, gsanimdir);
 				lastScreen = SCREEN_GAMESWITCHER;
 			} else {
 				Entry* entry = top->entries->items[top->selected];
@@ -631,20 +659,6 @@ int main(int argc, char* argv[]) {
 												  pos.text_x, pos.text_y, text_width, row_is_selected);
 						}
 					}
-					if (lastScreen == SCREEN_GAMESWITCHER) {
-						SDL_Surface* gsSur = GameSwitcher_getSurface();
-						if (gsSur) {
-							// update cpu surface here first
-							GFX_clearLayers(LAYER_ALL);
-							folderbgchanged = 1;
-
-							GFX_flipHidden();
-							GFX_animateSurface(gsSur, 0, 0, 0, 0 - screen->h, screen->w,
-											   screen->h, CFG_getMenuTransitions() ? 100 : 20,
-											   255, 255, LAYER_BACKGROUND);
-							animationdirection = ANIM_NONE;
-						}
-					}
 					if (lastScreen == SCREEN_OFF) {
 						GFX_animateSurfaceOpacity(blackBG, 0, 0, screen->w, screen->h, 255,
 												  0, CFG_getMenuTransitions() ? 200 : 20,
@@ -667,29 +681,48 @@ int main(int argc, char* argv[]) {
 
 			if (animationdirection != ANIM_NONE) {
 				if (CFG_getMenuTransitions()) {
-					GFX_clearLayers(LAYER_BACKGROUND);
-					folderbgchanged = 1;
+					if (lastScreen != SCREEN_GAMESWITCHER) {
+						GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
+										LAYER_BACKGROUND);
+						folderbgchanged = 1;
+					}
 					GFX_clearLayers(LAYER_TRANSITION);
+					if (menuBarSurface)
+						GFX_drawOnLayer(menuBarSurface, 0, 0, screen->w,
+										menuBarSurface->h, 1.0f, 0, LAYER_IDK2);
 					GFX_flipHidden();
 					SDL_Surface* tmpNewScreen = GFX_captureRendererToSurface();
 					SDL_SetSurfaceBlendMode(tmpNewScreen, SDL_BLENDMODE_BLEND);
 					GFX_clearLayers(LAYER_THUMBNAIL);
 					if (animationdirection == SLIDE_LEFT)
-						GFX_animateAndFadeSurface(tmpOldScreen, 0, 0, 0 - FIXED_WIDTH, 0,
-												  FIXED_WIDTH, FIXED_HEIGHT, 200,
-												  tmpNewScreen, 1, 0, FIXED_WIDTH,
-												  FIXED_HEIGHT, 0, 255, LAYER_THUMBNAIL);
+						GFX_animateSlidePages(
+							tmpOldScreen, 0, 0, 0 - FIXED_WIDTH, 0,
+							tmpNewScreen, FIXED_WIDTH, 0, 0, 0,
+							FIXED_WIDTH, FIXED_HEIGHT, 250, LAYER_THUMBNAIL);
 					if (animationdirection == SLIDE_RIGHT)
-						GFX_animateAndFadeSurface(tmpOldScreen, 0, 0, 0 + FIXED_WIDTH, 0,
-												  FIXED_WIDTH, FIXED_HEIGHT, 200,
-												  tmpNewScreen, 1, 0, FIXED_WIDTH,
-												  FIXED_HEIGHT, 0, 255, LAYER_THUMBNAIL);
+						GFX_animateSlidePages(
+							tmpOldScreen, 0, 0, FIXED_WIDTH, 0,
+							tmpNewScreen, 0 - FIXED_WIDTH, 0, 0, 0,
+							FIXED_WIDTH, FIXED_HEIGHT, 250, LAYER_THUMBNAIL);
+					if (animationdirection == SLIDE_DOWN)
+						GFX_animateSlidePages(
+							tmpOldScreen, 0, 0, 0, FIXED_HEIGHT,
+							tmpNewScreen, 0, 0 - FIXED_HEIGHT, 0, 0,
+							FIXED_WIDTH, FIXED_HEIGHT, 250, LAYER_THUMBNAIL);
+					if (animationdirection == SLIDE_UP)
+						GFX_animateSlidePages(
+							tmpOldScreen, 0, 0, 0, 0 - FIXED_HEIGHT,
+							tmpNewScreen, 0, FIXED_HEIGHT, 0, 0,
+							FIXED_WIDTH, FIXED_HEIGHT, 250, LAYER_THUMBNAIL);
 					GFX_clearLayers(LAYER_THUMBNAIL);
+					GFX_clearLayers(LAYER_IDK2);
 					SDL_FreeSurface(tmpNewScreen);
 				}
 				// animation done
 				animationdirection = ANIM_NONE;
 			}
+			if (menuBarSurface)
+				SDL_FreeSurface(menuBarSurface);
 
 			if (lastScreen == SCREEN_QUICKMENU) {
 				updateBackgroundLayer();
@@ -787,7 +820,6 @@ int main(int argc, char* argv[]) {
 	GFX_quit(); // Cleanup video subsystem first to stop GPU threads
 
 	// Now safe to free surfaces after GPU threads are stopped
-	GameSwitcher_quit();
 	if (blackBG)
 		SDL_FreeSurface(blackBG);
 	if (folderbgbmp)

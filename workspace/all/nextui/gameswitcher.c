@@ -10,18 +10,9 @@
 #include <unistd.h>
 
 static int switcher_selected = 0;
-static SDL_Surface* switcherSur = NULL;
 
 void GameSwitcher_init(void) {
 	switcher_selected = 0;
-	switcherSur = NULL;
-}
-
-void GameSwitcher_quit(void) {
-	if (switcherSur) {
-		SDL_FreeSurface(switcherSur);
-		switcherSur = NULL;
-	}
 }
 
 int GameSwitcher_shouldStartInSwitcher(void) {
@@ -42,8 +33,22 @@ int GameSwitcher_getSelected(void) {
 	return switcher_selected;
 }
 
-SDL_Surface* GameSwitcher_getSurface(void) {
-	return switcherSur;
+const char* GameSwitcher_getSelectedName(void) {
+	static char name_buf[256];
+	if (Recents_count() <= 0)
+		return "Recents";
+	Recent* recent = Recents_at(switcher_selected);
+	if (!recent)
+		return "Recents";
+	if (recent->alias) {
+		strncpy(name_buf, recent->alias, sizeof(name_buf) - 1);
+		name_buf[sizeof(name_buf) - 1] = '\0';
+		return name_buf;
+	}
+	char full_path[MAX_PATH];
+	snprintf(full_path, sizeof(full_path), "%s%s", SDCARD_PATH, recent->path);
+	getDisplayName(full_path, name_buf);
+	return name_buf;
 }
 
 GameSwitcherResult GameSwitcher_handleInput(unsigned long now) {
@@ -90,236 +95,140 @@ GameSwitcherResult GameSwitcher_handleInput(unsigned long now) {
 	return result;
 }
 
+static void drawBackground(SDL_Surface* surface, int x, int y, int w, int h,
+						   SDL_Surface* blackBG) {
+	GFX_flipHidden();
+	GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
+					LAYER_BACKGROUND);
+	GFX_drawOnLayer(surface, x, y, w, h, 1.0f, 0, LAYER_BACKGROUND);
+}
+
+static void drawCarouselAnimation(SDL_Surface* surface, int x, int y, int w,
+								  int h, int gsanimdir,
+								  SDL_Surface* blackBG) {
+	GFX_flipHidden();
+	GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
+					LAYER_BACKGROUND);
+	if (gsanimdir == SLIDE_LEFT)
+		GFX_animateSurface(surface, x + screen->w, y, x, y, w, h,
+						   CFG_getMenuTransitions() ? 80 : 20, 0, 255,
+						   LAYER_ALL);
+	else if (gsanimdir == SLIDE_RIGHT)
+		GFX_animateSurface(surface, x - screen->w, y, x, y, w, h,
+						   CFG_getMenuTransitions() ? 80 : 20, 0, 255,
+						   LAYER_ALL);
+	GFX_drawOnLayer(surface, x, y, w, h, 1.0f, 0, LAYER_BACKGROUND);
+}
+
 void GameSwitcher_render(int lastScreen, SDL_Surface* blackBG,
-						 int ow, int gsanimdir, SDL_Surface* tmpOldScreen) {
+						 int gsanimdir) {
 	GFX_clearLayers(LAYER_ALL);
 
-	// For all recents with resumable state (i.e. has savegame), show game
-	// switcher carousel
-	if (Recents_count() > 0) {
-		Entry* selectedEntry =
-			Recents_entryFromRecent(Recents_at(switcher_selected));
-		readyResume(selectedEntry);
-		// title pill
-		{
-			int max_width = screen->w - SCALE1(PADDING * 2) - ow;
+	if (Recents_count() <= 0) {
+		SDL_FillRect(screen, &(SDL_Rect){0, 0, screen->w, screen->h}, 0);
+		UI_renderCenteredMessage(screen, "No Recents");
+		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL});
+		GFX_flipHidden();
+		return;
+	}
 
-			char display_name[256];
-			int text_width =
-				GFX_truncateText(font.large, selectedEntry->name, display_name,
-								 max_width, SCALE1(BUTTON_PADDING * 2));
-			max_width = MIN(max_width, text_width);
+	Entry* selectedEntry =
+		Recents_entryFromRecent(Recents_at(switcher_selected));
+	readyResume(selectedEntry);
 
-			SDL_Surface* text = NULL;
-			SDL_Color textColor = uintToColour(THEME_COLOR6_255);
-			SDL_LockMutex(fontMutex);
-			text = TTF_RenderUTF8_Blended(font.large, display_name, textColor);
-			SDL_UnlockMutex(fontMutex);
-			if (text) {
-				const int text_offset_y = (SCALE1(PILL_SIZE) - TTF_FontHeight(font.large) + 1) >> 1;
-				GFX_blitPillLight(ASSET_WHITE_PILL, screen,
-								  &(SDL_Rect){SCALE1(PADDING), SCALE1(PADDING),
-											  max_width, SCALE1(PILL_SIZE)});
-				SDL_BlitSurface(
-					text,
-					&(SDL_Rect){0, 0, max_width - SCALE1(BUTTON_PADDING * 2),
-								text->h},
-					screen,
-					&(SDL_Rect){
-						SCALE1(PADDING + BUTTON_PADDING),
-						SCALE1(PADDING) + text_offset_y,
-					});
-				SDL_FreeSurface(text);
+	if (resume.can_resume)
+		UI_renderButtonHintBar(screen, (char*[]){"Y", "REMOVE", "A", "RESUME", "B", "BACK", NULL});
+	else
+		UI_renderButtonHintBar(screen, (char*[]){"Y", "REMOVE", "A", "RESUME", NULL});
+
+	if (resume.has_preview) {
+		SDL_Surface* bmp = IMG_Load(resume.preview_path);
+		if (bmp)
+			bmp = UI_convertSurface(bmp, screen);
+		if (bmp) {
+			int aw = screen->w;
+			int ah = screen->h;
+
+			float aspectRatio = (float)bmp->w / (float)bmp->h;
+			float screenRatio = (float)screen->w / (float)screen->h;
+
+			if (screenRatio > aspectRatio) {
+				aw = (int)(screen->h * aspectRatio);
+				ah = screen->h;
+			} else {
+				aw = screen->w;
+				ah = (int)(screen->w / aspectRatio);
 			}
+			int ax = (screen->w - aw) / 2;
+			int ay = (screen->h - ah) / 2;
+
+			if (lastScreen == SCREEN_GAME) {
+				GFX_flipHidden();
+				GFX_animateSurfaceOpacity(
+					bmp, 0, 0, screen->w, screen->h, 0, 255,
+					CFG_getMenuTransitions() ? 150 : 20, LAYER_ALL);
+			} else if (lastScreen == SCREEN_GAMESWITCHER) {
+				drawCarouselAnimation(bmp, ax, ay, aw, ah, gsanimdir, blackBG);
+			} else {
+				drawBackground(bmp, ax, ay, aw, ah, blackBG);
+			}
+			SDL_FreeSurface(bmp);
 		}
+	} else if (resume.has_boxart) {
+		SDL_Surface* boxart = IMG_Load(resume.boxart_path);
+		if (boxart)
+			boxart = UI_convertSurface(boxart, screen);
+		if (boxart) {
+			int img_w = boxart->w;
+			int img_h = boxart->h;
+			int max_w = (int)(screen->w * CFG_getGameArtWidth());
+			int max_h = (int)(screen->h * 0.6);
+			int new_w, new_h;
+			UI_calcImageFit(img_w, img_h, max_w, max_h, &new_w, &new_h);
 
-		if (resume.can_resume)
-			UI_renderButtonHintBar(screen, (char*[]){"Y", "REMOVE", "A", "RESUME", "B", "BACK", NULL});
-		else
-			UI_renderButtonHintBar(screen, (char*[]){"Y", "REMOVE", "A", "RESUME", BTN_SLEEP == BTN_POWER ? "POWER" : "MENU", "SLEEP", NULL});
+			GFX_ApplyRoundedCorners_8888(
+				boxart, &(SDL_Rect){0, 0, boxart->w, boxart->h},
+				SCALE1((float)CFG_getThumbnailRadius() *
+					   ((float)img_w / (float)new_w)));
 
-		if (resume.has_preview) {
-			// lotta memory churn here
+			int ax = (screen->w - new_w) / 2;
+			int ay = (screen->h - new_h) / 2;
 
-			SDL_Surface* bmp = IMG_Load(resume.preview_path);
-			if (bmp)
-				bmp = UI_convertSurface(bmp, screen);
-			if (bmp) {
-				int aw = screen->w;
-				int ah = screen->h;
-				int ax = 0;
-				int ay = 0;
-
-				float aspectRatio = (float)bmp->w / (float)bmp->h;
-				float screenRatio = (float)screen->w / (float)screen->h;
-
-				if (screenRatio > aspectRatio) {
-					aw = (int)(screen->h * aspectRatio);
-					ah = screen->h;
-				} else {
-					aw = screen->w;
-					ah = (int)(screen->w / aspectRatio);
-				}
-				ax = (screen->w - aw) / 2;
-				ay = (screen->h - ah) / 2;
-
-				if (lastScreen == SCREEN_GAME) {
-					// need to flip once so streaming_texture1 is updated
-					GFX_flipHidden();
-					GFX_animateSurfaceOpacity(
-						bmp, 0, 0, screen->w, screen->h, 0, 255,
-						CFG_getMenuTransitions() ? 150 : 20, LAYER_ALL);
-				} else if (lastScreen == SCREEN_GAMELIST) {
-					GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
-									LAYER_BACKGROUND);
-					GFX_drawOnLayer(bmp, ax, ay, aw, ah, 1.0f, 0, LAYER_BACKGROUND);
-					GFX_flipHidden();
-					SDL_Surface* tmpNewScreen = GFX_captureRendererToSurface();
-					GFX_clearLayers(LAYER_ALL);
-					folderbgchanged = 1;
-					GFX_drawOnLayer(tmpOldScreen, 0, 0, screen->w, screen->h, 1.0f,
-									0, LAYER_ALL);
-					GFX_animateSurface(tmpNewScreen, 0, 0 - screen->h, 0, 0,
-									   screen->w, screen->h,
-									   CFG_getMenuTransitions() ? 100 : 20, 255,
-									   255, LAYER_BACKGROUND);
-					SDL_FreeSurface(tmpNewScreen);
-
-				} else if (lastScreen == SCREEN_GAMESWITCHER) {
-					GFX_flipHidden();
-					GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
-									LAYER_BACKGROUND);
-					if (gsanimdir == SLIDE_LEFT)
-						GFX_animateSurface(bmp, ax + screen->w, ay, ax, ay, aw, ah,
-										   CFG_getMenuTransitions() ? 80 : 20, 0, 255,
-										   LAYER_ALL);
-					else if (gsanimdir == SLIDE_RIGHT)
-						GFX_animateSurface(bmp, ax - screen->w, ay, ax, ay, aw, ah,
-										   CFG_getMenuTransitions() ? 80 : 20, 0, 255,
-										   LAYER_ALL);
-
-					GFX_drawOnLayer(bmp, ax, ay, aw, ah, 1.0f, 0, LAYER_BACKGROUND);
-				} else if (lastScreen == SCREEN_QUICKMENU) {
-					GFX_flipHidden();
-					GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
-									LAYER_BACKGROUND);
-					GFX_drawOnLayer(bmp, ax, ay, aw, ah, 1.0f, 0, LAYER_BACKGROUND);
-				}
-				SDL_FreeSurface(bmp); // Free after rendering
+			if (lastScreen == SCREEN_GAME) {
+				GFX_flipHidden();
+				GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
+								LAYER_BACKGROUND);
+				GFX_animateSurfaceOpacity(boxart, ax, ay, new_w, new_h, 0, 255,
+										  CFG_getMenuTransitions() ? 150 : 20,
+										  LAYER_ALL);
+			} else if (lastScreen == SCREEN_GAMESWITCHER) {
+				drawCarouselAnimation(boxart, ax, ay, new_w, new_h, gsanimdir,
+									  blackBG);
+			} else {
+				drawBackground(boxart, ax, ay, new_w, new_h, blackBG);
 			}
-		} else if (resume.has_boxart) {
-			// Load and display boxart as fallback
-			SDL_Surface* boxart = IMG_Load(resume.boxart_path);
-			if (boxart)
-				boxart = UI_convertSurface(boxart, screen);
-			if (boxart) {
-				// Apply game art settings (sizing)
-				int img_w = boxart->w;
-				int img_h = boxart->h;
-				int max_w = (int)(screen->w * CFG_getGameArtWidth());
-				int max_h = (int)(screen->h * 0.6);
-				int new_w, new_h;
-				UI_calcImageFit(img_w, img_h, max_w, max_h, &new_w, &new_h);
-
-				// Apply rounded corners
-				GFX_ApplyRoundedCorners_8888(
-					boxart, &(SDL_Rect){0, 0, boxart->w, boxart->h},
-					SCALE1((float)CFG_getThumbnailRadius() *
-						   ((float)img_w / (float)new_w)));
-
-				// Center the boxart on screen
-				int ax = (screen->w - new_w) / 2;
-				int ay = (screen->h - new_h) / 2;
-
-				// Handle animations based on transition direction
-				if (lastScreen == SCREEN_GAME) {
-					GFX_flipHidden();
-					GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
-									LAYER_BACKGROUND);
-					GFX_animateSurfaceOpacity(boxart, ax, ay, new_w, new_h, 0, 255,
-											  CFG_getMenuTransitions() ? 150 : 20,
-											  LAYER_ALL);
-				} else if (lastScreen == SCREEN_GAMELIST) {
-					GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
-									LAYER_BACKGROUND);
-					GFX_drawOnLayer(boxart, ax, ay, new_w, new_h, 1.0f, 0,
-									LAYER_BACKGROUND);
-					GFX_flipHidden();
-					SDL_Surface* tmpNewScreen = GFX_captureRendererToSurface();
-					GFX_clearLayers(LAYER_ALL);
-					folderbgchanged = 1;
-					GFX_drawOnLayer(tmpOldScreen, 0, 0, screen->w, screen->h, 1.0f,
-									0, LAYER_ALL);
-					GFX_animateSurface(tmpNewScreen, 0, 0 - screen->h, 0, 0,
-									   screen->w, screen->h,
-									   CFG_getMenuTransitions() ? 100 : 20, 255,
-									   255, LAYER_BACKGROUND);
-					SDL_FreeSurface(tmpNewScreen);
-				} else if (lastScreen == SCREEN_GAMESWITCHER) {
-					GFX_flipHidden();
-					GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
-									LAYER_BACKGROUND);
-					if (gsanimdir == SLIDE_LEFT)
-						GFX_animateSurface(boxart, ax + screen->w, ay, ax, ay, new_w,
-										   new_h, CFG_getMenuTransitions() ? 80 : 20,
-										   0, 255, LAYER_ALL);
-					else if (gsanimdir == SLIDE_RIGHT)
-						GFX_animateSurface(boxart, ax - screen->w, ay, ax, ay, new_w,
-										   new_h, CFG_getMenuTransitions() ? 80 : 20,
-										   0, 255, LAYER_ALL);
-					GFX_drawOnLayer(boxart, ax, ay, new_w, new_h, 1.0f, 0,
-									LAYER_BACKGROUND);
-				} else if (lastScreen == SCREEN_QUICKMENU) {
-					GFX_flipHidden();
-					GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
-									LAYER_BACKGROUND);
-					GFX_drawOnLayer(boxart, ax, ay, new_w, new_h, 1.0f, 0,
-									LAYER_BACKGROUND);
-				}
-				SDL_FreeSurface(boxart);
-			}
-		} else {
-			// No savestate preview and no boxart - show "No Preview"
-			SDL_Rect preview_rect = {0, 0, screen->w, screen->h};
+			SDL_FreeSurface(boxart);
+		}
+	} else {
+		// No savestate preview and no boxart - show "No Preview"
+		if (lastScreen == SCREEN_GAME) {
 			SDL_Surface* tmpsur = SDL_CreateRGBSurfaceWithFormat(
 				0, screen->w, screen->h, screen->format->BitsPerPixel,
 				screen->format->format);
 			if (tmpsur) {
-				SDL_FillRect(tmpsur, &preview_rect,
+				SDL_FillRect(tmpsur, &(SDL_Rect){0, 0, screen->w, screen->h},
 							 SDL_MapRGBA(screen->format, 0, 0, 0, 255));
-				if (lastScreen == SCREEN_GAME) {
-					GFX_animateSurfaceOpacity(
-						tmpsur, 0, 0, screen->w, screen->h, 255, 0,
-						CFG_getMenuTransitions() ? 150 : 20, LAYER_BACKGROUND);
-				} else if (lastScreen == SCREEN_GAMELIST) {
-					GFX_animateSurface(
-						tmpsur, 0, 0 - screen->h, 0, 0, screen->w, screen->h,
-						CFG_getMenuTransitions() ? 100 : 20, 255, 255, LAYER_ALL);
-				} else if (lastScreen == SCREEN_GAMESWITCHER) {
-					GFX_flipHidden();
-					if (gsanimdir == SLIDE_LEFT)
-						GFX_animateSurface(
-							tmpsur, 0 + screen->w, 0, 0, 0, screen->w, screen->h,
-							CFG_getMenuTransitions() ? 80 : 20, 0, 255, LAYER_ALL);
-					else if (gsanimdir == SLIDE_RIGHT)
-						GFX_animateSurface(
-							tmpsur, 0 - screen->w, 0, 0, 0, screen->w, screen->h,
-							CFG_getMenuTransitions() ? 80 : 20, 0, 255, LAYER_ALL);
-				}
+				GFX_animateSurfaceOpacity(
+					tmpsur, 0, 0, screen->w, screen->h, 255, 0,
+					CFG_getMenuTransitions() ? 150 : 20, LAYER_BACKGROUND);
 				SDL_FreeSurface(tmpsur);
 			}
-			UI_renderCenteredMessage(screen, "No Preview");
+		} else if (lastScreen == SCREEN_GAMESWITCHER) {
+			GFX_flipHidden();
 		}
-		Entry_free(selectedEntry);
-	} else {
-		SDL_FillRect(screen, &(SDL_Rect){0, 0, screen->w, screen->h}, 0);
-		UI_renderCenteredMessage(screen, "No Recents");
-		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", NULL});
+		UI_renderCenteredMessage(screen, "No Preview");
 	}
+	Entry_free(selectedEntry);
 
 	GFX_flipHidden();
-
-	if (switcherSur)
-		SDL_FreeSurface(switcherSur);
-	switcherSur = GFX_captureRendererToSurface();
 }

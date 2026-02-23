@@ -1397,96 +1397,75 @@ SDL_Surface* PLAT_captureRendererToSurface() {
 	return surface;
 }
 
-void PLAT_animateAndFadeSurface(
-	SDL_Surface* inputSurface,
-	int x, int y, int target_x, int target_y, int w, int h, int duration_ms,
-	SDL_Surface* fadeSurface,
-	int fade_x, int fade_y, int fade_w, int fade_h,
-	int start_opacity, int target_opacity, int layer) {
-	if (!inputSurface || !vid.renderer)
+void PLAT_animateSlidePages(
+	SDL_Surface* outSurface,
+	int out_x, int out_y, int out_target_x, int out_target_y,
+	SDL_Surface* inSurface,
+	int in_x, int in_y, int in_target_x, int in_target_y,
+	int w, int h, int duration_ms, int layer) {
+	if (!outSurface || !inSurface || !vid.renderer)
 		return;
 
-	SDL_Texture* moveTexture = SDL_CreateTexture(vid.renderer,
-												 SDL_PIXELFORMAT_ARGB8888,
-												 SDL_TEXTUREACCESS_TARGET,
-												 inputSurface->w, inputSurface->h);
-
-	if (!moveTexture) {
-		LOG_error("Failed to create move texture: %s\n", SDL_GetError());
+	SDL_Texture* outTexture = SDL_CreateTexture(vid.renderer,
+												SDL_PIXELFORMAT_ARGB8888,
+												SDL_TEXTUREACCESS_TARGET,
+												outSurface->w, outSurface->h);
+	if (!outTexture) {
+		LOG_error("Failed to create out texture: %s\n", SDL_GetError());
 		return;
 	}
+	SDL_UpdateTexture(outTexture, NULL, outSurface->pixels, outSurface->pitch);
 
-	SDL_UpdateTexture(moveTexture, NULL, inputSurface->pixels, inputSurface->pitch);
-
-	SDL_Texture* fadeTexture = NULL;
-	if (fadeSurface) {
-		fadeTexture = SDL_CreateTextureFromSurface(vid.renderer, fadeSurface);
-		if (!fadeTexture) {
-			LOG_error("Failed to create fade texture: %s\n", SDL_GetError());
-			SDL_DestroyTexture(moveTexture);
-			return;
-		}
-		SDL_SetTextureBlendMode(fadeTexture, SDL_BLENDMODE_BLEND);
+	SDL_Texture* inTexture = SDL_CreateTexture(vid.renderer,
+											   SDL_PIXELFORMAT_ARGB8888,
+											   SDL_TEXTUREACCESS_TARGET,
+											   inSurface->w, inSurface->h);
+	if (!inTexture) {
+		LOG_error("Failed to create in texture: %s\n", SDL_GetError());
+		SDL_DestroyTexture(outTexture);
+		return;
 	}
+	SDL_UpdateTexture(inTexture, NULL, inSurface->pixels, inSurface->pitch);
 
 	const int fps = 60;
 	const int frame_delay = 1000 / fps;
 	const int total_frames = duration_ms / frame_delay;
 
-	Uint32 start_time = SDL_GetTicks();
-
 	for (int frame = 0; frame <= total_frames; ++frame) {
 		float t = (float)frame / total_frames;
+		// ease-out cubic: fast start, smooth deceleration
+		float eased = 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
 
-		int current_x = x + (int)((target_x - x) * t);
-		int current_y = y + (int)((target_y - y) * t);
-
-		int current_opacity = start_opacity + (int)((target_opacity - start_opacity) * t);
-		if (current_opacity < 0)
-			current_opacity = 0;
-		if (current_opacity > 255)
-			current_opacity = 255;
+		int out_cx = out_x + (int)((out_target_x - out_x) * eased);
+		int out_cy = out_y + (int)((out_target_y - out_y) * eased);
+		int in_cx = in_x + (int)((in_target_x - in_x) * eased);
+		int in_cy = in_y + (int)((in_target_y - in_y) * eased);
 
 		switch (layer) {
-		case 1:
-			SDL_SetRenderTarget(vid.renderer, vid.target_layer1);
-			break;
-		case 2:
-			SDL_SetRenderTarget(vid.renderer, vid.target_layer2);
-			break;
-		case 3:
-			SDL_SetRenderTarget(vid.renderer, vid.target_layer3);
-			break;
-		case 4:
-			SDL_SetRenderTarget(vid.renderer, vid.target_layer4);
-			break;
-		case 5:
-			SDL_SetRenderTarget(vid.renderer, vid.target_layer5);
-			break;
-		default:
-			SDL_SetRenderTarget(vid.renderer, vid.target_layer1);
-			break;
+		case 1: SDL_SetRenderTarget(vid.renderer, vid.target_layer1); break;
+		case 2: SDL_SetRenderTarget(vid.renderer, vid.target_layer2); break;
+		case 3: SDL_SetRenderTarget(vid.renderer, vid.target_layer3); break;
+		case 4: SDL_SetRenderTarget(vid.renderer, vid.target_layer4); break;
+		case 5: SDL_SetRenderTarget(vid.renderer, vid.target_layer5); break;
+		default: SDL_SetRenderTarget(vid.renderer, vid.target_layer1); break;
 		}
 		SDL_SetRenderDrawColor(vid.renderer, 0, 0, 0, 0);
 		SDL_RenderClear(vid.renderer);
 
-		SDL_Rect moveSrcRect = {0, 0, inputSurface->w, inputSurface->h};
-		SDL_Rect moveDstRect = {current_x, current_y, w, h};
-		SDL_RenderCopy(vid.renderer, moveTexture, &moveSrcRect, &moveDstRect);
+		SDL_Rect outSrc = {0, 0, outSurface->w, outSurface->h};
+		SDL_Rect outDst = {out_cx, out_cy, w, h};
+		SDL_RenderCopy(vid.renderer, outTexture, &outSrc, &outDst);
 
-		if (fadeTexture) {
-			SDL_SetTextureAlphaMod(fadeTexture, current_opacity);
-			SDL_Rect fadeDstRect = {fade_x, fade_y, fade_w, fade_h};
-			SDL_RenderCopy(vid.renderer, fadeTexture, NULL, &fadeDstRect);
-		}
+		SDL_Rect inSrc = {0, 0, inSurface->w, inSurface->h};
+		SDL_Rect inDst = {in_cx, in_cy, w, h};
+		SDL_RenderCopy(vid.renderer, inTexture, &inSrc, &inDst);
 
 		SDL_SetRenderTarget(vid.renderer, NULL);
 		PLAT_GPU_Flip();
 	}
 
-	SDL_DestroyTexture(moveTexture);
-	if (fadeTexture)
-		SDL_DestroyTexture(fadeTexture);
+	SDL_DestroyTexture(outTexture);
+	SDL_DestroyTexture(inTexture);
 }
 
 void PLAT_setEffect(int next_type) {

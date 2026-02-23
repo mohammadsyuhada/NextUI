@@ -16,6 +16,7 @@ void QuickMenu_quit(void);
 void QuickMenu_resetSelection(void);
 QuickMenuResult QuickMenu_handleInput(unsigned long now);
 void QuickMenu_render(int lastScreen, IndicatorType show_setting, int ow,
-					  char* folderBgPath, size_t folderBgPathSize);
+					  char* folderBgPath, size_t folderBgPathSize,
+					  SDL_Surface* blackBG);
 
 #endif // QUICKMENU_H

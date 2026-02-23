@@ -274,14 +274,16 @@ QuickMenuResult QuickMenu_handleInput(unsigned long now) {
 }
 
 void QuickMenu_render(int lastScreen, IndicatorType show_setting, int ow,
-					  char* folderBgPath, size_t folderBgPathSize) {
+					  char* folderBgPath, size_t folderBgPathSize,
+					  SDL_Surface* blackBG) {
 	if (qm_connect_active) {
 		ConnectDialog_render(screen);
 		return;
 	}
 
 	if (lastScreen != SCREEN_QUICKMENU) {
-		GFX_clearLayers(LAYER_BACKGROUND);
+		GFX_drawOnLayer(blackBG, 0, 0, screen->w, screen->h, 1.0f, 0,
+						LAYER_BACKGROUND);
 		GFX_clearLayers(LAYER_THUMBNAIL);
 		qm_refresh_wifi();
 		qm_refresh_devmode();

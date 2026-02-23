@@ -9,6 +9,8 @@ enum {
 	ANIM_NONE = 0,
 	SLIDE_LEFT = 1,
 	SLIDE_RIGHT = 2,
+	SLIDE_DOWN = 3,
+	SLIDE_UP = 4,
 };
 
 // Background loading callback
