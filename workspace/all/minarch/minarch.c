@@ -938,7 +938,7 @@ static void State_getPath(char* filename) {
 
 	// This is only here for compatibility with older versions of minarch,
 	// should probably be removed at some point in the future.
-	if (CFG_getStateFormat() == STATE_FORMAT_SRM_EXTRADOT || CFG_getStateFormat() == STATE_FORMAT_SRM_UNCOMRESSED_EXTRADOT) {
+	if (CFG_getStateFormat() == STATE_FORMAT_SRM_EXTRADOT || CFG_getStateFormat() == STATE_FORMAT_SRM_UNCOMPRESSED_EXTRADOT) {
 		strcpy(work_name, game.alt_name);
 		char* tmp = strrchr(work_name, '.');
 		if (tmp != NULL && strlen(tmp) > 2 && strlen(tmp) <= 5) {
@@ -949,7 +949,7 @@ static void State_getPath(char* filename) {
 			sprintf(filename, "%s/%s.state.auto", core.states_dir, work_name);
 		else
 			sprintf(filename, "%s/%s.state.%i", core.states_dir, work_name, state_slot);
-	} else if (CFG_getStateFormat() == STATE_FORMAT_SRM || CFG_getStateFormat() == STATE_FORMAT_SRM_UNCOMRESSED) {
+	} else if (CFG_getStateFormat() == STATE_FORMAT_SRM || CFG_getStateFormat() == STATE_FORMAT_SRM_UNCOMPRESSED) {
 		strcpy(work_name, game.alt_name);
 		char* tmp = strrchr(work_name, '.');
 		if (tmp != NULL && strlen(tmp) > 2 && strlen(tmp) <= 5) {

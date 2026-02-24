@@ -159,7 +159,10 @@ echo after bluetooth `cat /proc/uptime` >> /tmp/nextui_boottime
 # SSH handling - developer setting
 sshonboot=$(nextval.elf sshOnBoot | sed -n 's/.*"sshOnBoot": \([0-9]*\).*/\1/p')
 if [ "$sshonboot" -eq 1 ]; then
-	/etc/init.d/sshd start > /dev/null 2>&1 &
+	/etc/init.d/S50sshd start > /dev/null 2>&1 &
+else
+	# Stop SSH started by stock init system (S50sshd)
+	/etc/init.d/S50sshd stop > /dev/null 2>&1
 fi
 
 #######################################

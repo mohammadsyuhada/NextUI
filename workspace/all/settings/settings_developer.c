@@ -69,9 +69,10 @@ static void* ssh_toggle_thread(void* arg) {
 	}* ctx = arg;
 
 	if (ctx->val) {
-		system("/etc/init.d/sshd start > /dev/null 2>&1");
+		// Try both init script names (tg5040 uses sshd, tg5050 uses S50sshd)
+		system("/etc/init.d/sshd start > /dev/null 2>&1 || /etc/init.d/S50sshd start > /dev/null 2>&1");
 	} else {
-		system("/etc/init.d/sshd stop > /dev/null 2>&1");
+		system("/etc/init.d/sshd stop > /dev/null 2>&1 || /etc/init.d/S50sshd stop > /dev/null 2>&1");
 	}
 	*ctx->done = 1;
 	return NULL;

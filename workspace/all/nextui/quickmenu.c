@@ -357,7 +357,7 @@ QuickMenuResult QuickMenu_handleInput(unsigned long now) {
 	} else if (PAD_justReleased(BTN_A)) {
 		if (qm_row == QM_ROW_DEVMODE) {
 			CFG_setDisableSleep(false);
-			system("/etc/init.d/sshd stop > /dev/null 2>&1 &");
+			system("/etc/init.d/sshd stop > /dev/null 2>&1 || /etc/init.d/S50sshd stop > /dev/null 2>&1 &");
 			qm_cache_devmode = false;
 			qm_row = QM_ROW_TOGGLES;
 			qm_col = 0;

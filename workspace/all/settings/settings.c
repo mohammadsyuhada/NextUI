@@ -244,7 +244,7 @@ static const char* save_format_labels[] = {"MinUI (default)", "Retroarch (compre
 #define SAVE_FORMAT_COUNT 4
 
 /* State format */
-static int state_format_values[] = {STATE_FORMAT_SAV, STATE_FORMAT_SRM_EXTRADOT, STATE_FORMAT_SRM_UNCOMRESSED_EXTRADOT, STATE_FORMAT_SRM, STATE_FORMAT_SRM_UNCOMRESSED};
+static int state_format_values[] = {STATE_FORMAT_SAV, STATE_FORMAT_SRM_EXTRADOT, STATE_FORMAT_SRM_UNCOMPRESSED_EXTRADOT, STATE_FORMAT_SRM, STATE_FORMAT_SRM_UNCOMPRESSED};
 static const char* state_format_labels[] = {"MinUI (default)", "Retroarch-ish (compressed)", "Retroarch-ish (uncompressed)", "Retroarch (compressed)", "Retroarch (uncompressed)"};
 #define STATE_FORMAT_COUNT 5
 
