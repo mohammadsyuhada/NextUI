@@ -107,7 +107,6 @@ endif
 	cp ./workspace/all/clock/build/$(PLATFORM)/clock.elf ./build/EXTRAS/Tools/$(PLATFORM)/Clock.pak/
 	cp ./workspace/all/input/build/$(PLATFORM)/input.elf ./build/EXTRAS/Tools/$(PLATFORM)/Input.pak/
 	cp ./workspace/all/settings/build/$(PLATFORM)/settings.elf ./build/EXTRAS/Tools/$(PLATFORM)/Settings.pak/
-	cp ./workspace/all/updater/build/$(PLATFORM)/updater.elf ./build/EXTRAS/Tools/$(PLATFORM)/Updater.pak/
 	cp ./workspace/all/musicplayer/build/$(PLATFORM)/musicplayer.elf ./build/EXTRAS/Tools/$(PLATFORM)/Music\ Player.pak/
 	cp ./workspace/all/mediaplayer/build/$(PLATFORM)/mediaplayer.elf ./build/EXTRAS/Tools/$(PLATFORM)/Media\ Player.pak/
 ifneq (,$(filter $(PLATFORM),tg5040 tg5050))

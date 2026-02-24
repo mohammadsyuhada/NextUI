@@ -51,7 +51,6 @@ endif
 	cd ./all/syncsettings/ && make
 	cd ./all/nextval/ && make
 	cd ./all/settings/ && make
-	cd ./all/updater/ && make
 	cd ./all/bootlogo/ && make
 	cd ./all/audiomon && make all
 	cd ./all/show2/ && make
@@ -100,7 +99,6 @@ endif
 	cd ./all/input/ && make clean
 	cd ./all/nextval/ && make clean
 	cd ./all/settings/ && make clean
-	cd ./all/updater/ && make clean
 	cd ./all/screenshot/ && make clean
 	cd ./all/audiomon/ && make clean
 	cd ./all/musicplayer/ && make clean
