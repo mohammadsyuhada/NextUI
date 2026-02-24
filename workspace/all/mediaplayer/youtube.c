@@ -124,6 +124,7 @@ static void thumb_cache_cleanup(YouTubeThumbDownloader* dl) {
 // Background thread: download thumbnails one-by-one
 static void* thumb_download_thread(void* arg) {
 	YouTubeThumbDownloader* dl = (YouTubeThumbDownloader*)arg;
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 
 	// Ensure thumbnails directory exists
 	mkdir(SDCARD_PATH "/.cache", 0755);
@@ -209,6 +210,7 @@ YouTubeThumbDownloader* YouTube_getThumbDownloader(void) {
 // Background thread: retry downloading a single thumbnail
 static void* thumb_retry_thread(void* arg) {
 	(void)arg;
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 	char path[512];
 	snprintf(path, sizeof(path), APP_THUMBNAILS_DIR "/%s.jpg", thumb_retry.id);
 
@@ -392,6 +394,7 @@ static int search_via_ytdlp(YouTubeAsyncOp* op) {
 // Background thread: search YouTube via yt-dlp
 static void* search_thread_func(void* arg) {
 	YouTubeAsyncOp* op = (YouTubeAsyncOp*)arg;
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 
 	int count = search_via_ytdlp(op);
 
@@ -432,6 +435,7 @@ YouTubeAsyncOp* YouTube_getSearchOp(void) {
 // Background thread: resolve stream URL via yt-dlp
 static void* resolve_thread_func(void* arg) {
 	YouTubeAsyncOp* op = (YouTubeAsyncOp*)arg;
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 
 	// yt-dlp: get best stream URL (720p max for device capability)
 	char cmd[1024];
@@ -515,6 +519,7 @@ void YouTube_cancelResolve(void) {
 // Background thread: fetch channel info via yt-dlp JSON
 static void* channel_info_thread_func(void* arg) {
 	YouTubeChannelInfoOp* op = (YouTubeChannelInfoOp*)arg;
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 
 	// Step 1: Use yt-dlp to get video metadata JSON (includes channel info)
 	const char* temp_file = "/tmp/yt_channel_info.json";
@@ -756,6 +761,7 @@ void YouTube_cancelChannelInfo(void) {
 // Background thread: fetch channel uploads via yt-dlp
 static void* uploads_thread_func(void* arg) {
 	YouTubeUploadsOp* op = (YouTubeUploadsOp*)arg;
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 
 	// Sanitize URL
 	char safe_url[1024];
@@ -983,6 +989,7 @@ int YouTube_loadVideosCache(const char* channel_id, YouTubeSearchResults* result
 // Background thread: download thumbnails for a specific channel
 static void* channel_thumb_thread(void* arg) {
 	YouTubeThumbDownloader* dl = (YouTubeThumbDownloader*)arg;
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 	char thumb_dir[512];
 	if (!Subscriptions_getThumbDir(channel_thumb_dl.channel_id, thumb_dir, sizeof(thumb_dir))) {
 		dl->running = false;

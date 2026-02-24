@@ -9,6 +9,7 @@
 #include "module_common.h"
 #include "module_player.h"
 #include "video_browser.h"
+#include "display_helper.h"
 #include "ffplay_engine.h"
 #include "ui_player.h"
 
@@ -142,7 +143,7 @@ ModuleExitReason PlayerModule_run(SDL_Surface* screen) {
 
 					// TG5050: display recovery creates a new screen surface
 					{
-						SDL_Surface* ns = FfplayEngine_getReinitScreen();
+						SDL_Surface* ns = DisplayHelper_getReinitScreen();
 						if (ns)
 							screen = ns;
 					}

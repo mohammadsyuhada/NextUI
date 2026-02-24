@@ -11,6 +11,7 @@
 #include "subscriptions.h"
 #include "youtube.h"
 #include "wifi.h"
+#include "display_helper.h"
 #include "ffplay_engine.h"
 #include "ui_components.h"
 #include "ui_subscriptions.h"
@@ -212,7 +213,7 @@ ModuleExitReason SubscriptionsModule_run(SDL_Surface* screen) {
 
 				// TG5050: display recovery creates a new screen surface
 				{
-					SDL_Surface* ns = FfplayEngine_getReinitScreen();
+					SDL_Surface* ns = DisplayHelper_getReinitScreen();
 					if (ns)
 						screen = ns;
 				}

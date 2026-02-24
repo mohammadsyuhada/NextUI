@@ -146,6 +146,7 @@ static void url_encode(const char* src, char* dst, int dst_size) {
 // Background thread: fetch album art from iTunes API
 static void* fetch_thread_func(void* arg) {
 	(void)arg;
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 	const char* artist = art_ctx.req_artist;
 	const char* title = art_ctx.req_title;
 

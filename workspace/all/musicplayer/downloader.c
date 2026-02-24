@@ -196,6 +196,7 @@ void Downloader_cancelSearch(void) {
 // Background search thread function
 static void* search_thread_func(void* arg) {
 	(void)arg;
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 
 	search_status.searching = true;
 	search_status.completed = false;
@@ -586,6 +587,7 @@ static int parse_ytdlp_eta(const char* eta_str) {
 
 static void* download_thread_func(void* arg) {
 	(void)arg;
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 
 	// Disable auto sleep while downloading
 	PWR_disableAutosleep();

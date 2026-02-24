@@ -17,6 +17,7 @@
 #include "module_youtube.h"
 #include "module_iptv.h"
 #include "module_settings.h"
+#include "display_helper.h"
 #include "ffplay_engine.h"
 #include "settings.h"
 #include "ytdlp_updater.h"
@@ -46,6 +47,7 @@ int main(int argc, char* argv[]) {
 	(void)argv;
 
 	screen = GFX_init(MODE_MAIN);
+	PWR_pinToCores(CPU_CORE_PERFORMANCE);
 	// Show splash screen immediately while subsystems initialize
 	{
 		GFX_clear(screen);
@@ -140,7 +142,7 @@ int main(int argc, char* argv[]) {
 
 		// TG5050: modules may have triggered display recovery (new screen surface)
 		{
-			SDL_Surface* ns = FfplayEngine_getReinitScreen();
+			SDL_Surface* ns = DisplayHelper_getReinitScreen();
 			if (ns)
 				screen = ns;
 		}

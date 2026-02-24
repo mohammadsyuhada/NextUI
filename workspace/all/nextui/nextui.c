@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include "content.h"
+#include "display_helper.h"
 #include "gameswitcher.h"
 #include "imgloader.h"
 #include "launcher.h"
@@ -507,6 +508,13 @@ int main(int argc, char* argv[]) {
 				QuickMenu_resetSelection();
 			}
 			total = top->entries->count;
+		}
+
+		// TG5050: search keyboard may have triggered display recovery (new screen surface)
+		{
+			SDL_Surface* ns = DisplayHelper_getReinitScreen();
+			if (ns)
+				screen = ns;
 		}
 
 		if (dirty) {

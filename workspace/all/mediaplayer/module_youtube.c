@@ -12,6 +12,7 @@
 #include "youtube.h"
 #include "wifi.h"
 #include "ui_keyboard.h"
+#include "display_helper.h"
 #include "ffplay_engine.h"
 #include "subscriptions.h"
 #include "ui_youtube.h"
@@ -41,7 +42,7 @@ static char subscribe_fetch_channel_id[64] = "";
 // Start a new search flow: keyboard -> WiFi -> yt-dlp
 static bool start_search(SDL_Surface** screenp, IndicatorType show_setting) {
 	// TG5050: release display before keyboard (external binary takes DRM master)
-	FfplayEngine_prepareForExternal();
+	DisplayHelper_prepareForExternal();
 
 	char* query = UIKeyboard_open("Search YouTube");
 
@@ -51,9 +52,9 @@ static bool start_search(SDL_Surface** screenp, IndicatorType show_setting) {
 	PAD_reset();
 
 	// TG5050: restore display after keyboard exits
-	FfplayEngine_recoverDisplay();
+	DisplayHelper_recoverDisplay();
 	{
-		SDL_Surface* ns = FfplayEngine_getReinitScreen();
+		SDL_Surface* ns = DisplayHelper_getReinitScreen();
 		if (ns)
 			*screenp = ns;
 	}
@@ -152,7 +153,7 @@ ModuleExitReason YouTubeModule_run(SDL_Surface* screen) {
 					ModuleExitReason reason = SubscriptionsModule_run(screen);
 					// TG5050: subscriptions module may have triggered display recovery
 					{
-						SDL_Surface* ns = FfplayEngine_getReinitScreen();
+						SDL_Surface* ns = DisplayHelper_getReinitScreen();
 						if (ns)
 							screen = ns;
 					}
@@ -215,7 +216,7 @@ ModuleExitReason YouTubeModule_run(SDL_Surface* screen) {
 
 				// TG5050: display recovery creates a new screen surface
 				{
-					SDL_Surface* ns = FfplayEngine_getReinitScreen();
+					SDL_Surface* ns = DisplayHelper_getReinitScreen();
 					if (ns)
 						screen = ns;
 				}

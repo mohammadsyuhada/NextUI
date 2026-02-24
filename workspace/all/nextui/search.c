@@ -2,6 +2,7 @@
 #include "config.h"
 #include "content.h"
 #include "defines.h"
+#include "display_helper.h"
 #include "imgloader.h"
 #include "launcher.h"
 #include "types.h"
@@ -33,9 +34,11 @@ void Search_quit(void) {
 }
 
 bool Search_open(void) {
+	DisplayHelper_prepareForExternal();
 	char* query = UIKeyboard_open("Search");
 	PAD_poll();
 	PAD_reset();
+	DisplayHelper_recoverDisplay();
 
 	if (!query || strlen(query) == 0) {
 		if (query)

@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <pthread.h>
+#include "api.h"
 #include "platform.h"
 #include "parson/parson.h"
 
@@ -194,6 +195,7 @@ typedef struct {
 
 // Background fetch thread function (detached — must not touch shared state if stale)
 static void* fetch_thread_func(void* arg) {
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 	FetchArgs* args = (FetchArgs*)arg;
 	int my_gen = args->generation;
 
