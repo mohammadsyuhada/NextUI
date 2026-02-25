@@ -178,7 +178,7 @@ const char* color_labels[COLOR_COUNT] = {
 // Static label/value arrays
 // ============================================
 
-static const char* font_labels[] = {"OG", "Next"};
+static const char* font_labels[] = {"Next", "Redux"};
 static const char* on_off_labels[] = {"Off", "On"};
 
 static int screen_timeout_values[] = {0, 5, 10, 15, 30, 45, 60, 90, 120, 240, 360, 600};
