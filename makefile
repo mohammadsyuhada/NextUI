@@ -229,7 +229,18 @@ setup: name
 	rm -rf ./build
 	mkdir -p ./releases
 	cp -R ./skeleton ./build
-	
+
+	# Fetch advanced drastic emulator
+	@echo "Fetching advanced drastic..."
+	curl -sL https://github.com/trngaje/advanced_drastic/archive/refs/heads/master.tar.gz | tar xz -C /tmp
+	mkdir -p ./build/EXTRAS/Emus/shared/Drastic
+	cp -Rf /tmp/advanced_drastic-master/* ./build/EXTRAS/Emus/shared/Drastic/
+	rm -rf /tmp/advanced_drastic-master
+	rm -f ./build/EXTRAS/Emus/shared/Drastic/history.md ./build/EXTRAS/Emus/shared/Drastic/launch.sh
+	rm -rf ./build/EXTRAS/Emus/shared/Drastic/images
+	# Overlay custom drastic resources (bg, fonts) on top of upstream
+	cp -Rf ./skeleton/EXTRAS/Emus/shared/Drastic/resources/ ./build/EXTRAS/Emus/shared/Drastic/resources/
+
 	# remove authoring detritus
 	cd ./build && find . -type f -name '.keep' -delete
 	cd ./build && find . -type f -name '*.meta' -delete
@@ -326,7 +337,7 @@ package: tidy
 			Bios Cheats Roms Saves Overlays README.txt \
 			&& cd ../..; \
 		cd ./build/EXTRAS && zip -r ../../releases/$(RELEASE_NAME)-$$plat.zip \
-			Emus/$$plat Tools/$$plat \
+			Emus/$$plat Emus/shared Tools/$$plat \
 			&& cd ../..; \
 		if [ -d ./build/PAKZ/$$plat ]; then \
 			cd ./build/PAKZ/$$plat && zip -r ../../../releases/$(RELEASE_NAME)-$$plat.zip *.pakz && cd ../../..; \

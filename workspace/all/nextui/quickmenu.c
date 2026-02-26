@@ -636,7 +636,10 @@ QuickMenuResult QuickMenu_handleInput(unsigned long now) {
 	} else if (PAD_justPressed(BTN_X)) {
 		Entry* xselected =
 			qm_row == QM_ROW_TOGGLES ? quickActions->items[qm_col] : NULL;
-		if (xselected && xselected->quickId == QUICK_WIFI) {
+		if (xselected && xselected->quickId == QUICK_POWEROFF) {
+			PWR_sleep();
+			result.dirty = true;
+		} else if (xselected && xselected->quickId == QUICK_WIFI) {
 			if (!WIFI_enabled()) {
 				qm_toggle_with_overlay(WIFI_enable, 1, "Enabling WiFi...");
 			}
@@ -764,6 +767,7 @@ void QuickMenu_render(int lastScreen, IndicatorType show_setting, int ow,
 					  (current->quickId == QUICK_WIFI || current->quickId == QUICK_BLUETOOTH));
 	bool is_screenrec = (qm_row == QM_ROW_TOGGLES &&
 						 (current->quickId == QUICK_SCREENRECORD || current->quickId == QUICK_SCREENSHOT));
+	bool is_poweroff = (qm_row == QM_ROW_TOGGLES && current->quickId == QUICK_POWEROFF);
 	char* hints[9];
 	int hi = 0;
 	hints[hi++] = "B";
@@ -776,6 +780,10 @@ void QuickMenu_render(int lastScreen, IndicatorType show_setting, int ow,
 	if (is_toggle) {
 		hints[hi++] = "X";
 		hints[hi++] = "CONNECT";
+	}
+	if (is_poweroff) {
+		hints[hi++] = "X";
+		hints[hi++] = "SLEEP";
 	}
 	hints[hi] = NULL;
 	UI_renderButtonHintBar(screen, hints);

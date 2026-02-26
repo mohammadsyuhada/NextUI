@@ -70,6 +70,7 @@ New Features:
     - When Screen Recorder is enabled, recording runs in the background automatically.
 - Built-in [Music Player](https://github.com/mohammadsyuhada/nextui-music-player)
 - Built-in [Media Player](https://github.com/mohammadsyuhada/nextui-video-player)
+- Pre-install `Drastic NDS` emulator with simplified in-game menu.
 
 Upcoming Features:
 - Integration with [Netplay](https://github.com/mohammadsyuhada/nextui-netplay)
@@ -94,7 +95,7 @@ Architectural decisions here prioritize clarity and maintainability over strict 
 - [ro8inmorgan](https://github.com/ro8inmorgan), [frysee](https://github.com/frysee) and all contributors for developing NextUI
 - [KrutzOtrem](https://github.com/KrutzOtrem/Trimui-Brick-Overlays) for the overlays
 - [timbueno](https://github.com/timbueno/ArtBookNextUI.theme) for the Artbook theme
-- [anthonycaccese](https://github.com/anthonycaccese/art-book-next-es-de) for the Artbook artwork
+- [anthonycaccese](https://github.com/anthonycaccese/art-book-next-es.git) for the Artbook artwork
 
 ## License
 
