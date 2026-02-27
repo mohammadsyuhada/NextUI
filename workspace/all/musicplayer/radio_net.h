@@ -15,4 +15,9 @@ int radio_net_parse_url(const char* url, char* host, int host_size,
 int radio_net_fetch(const char* url, uint8_t* buffer, int buffer_size,
 					char* content_type, int ct_size);
 
+// Resolve URL redirects and return the final URL
+// Uses radio_net's TLS infrastructure (supports TLS 1.3)
+// Returns 0 on success (resolved_url filled), -1 on error
+int radio_net_resolve_url(const char* url, char* resolved_url, int resolved_url_size);
+
 #endif

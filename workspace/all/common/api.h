@@ -121,7 +121,7 @@ extern int currentshaderdsth;
 extern int currentshadertexw;
 extern int currentshadertexh;
 extern int should_rotate;
-extern volatile int useAutoCpu;
+
 
 enum {
 	ASSET_WHITE_PILL,
@@ -601,6 +601,7 @@ enum {
 	CPU_SPEED_PERFORMANCE,
 };
 #define PWR_setCPUSpeed PLAT_setCPUSpeed
+#define PWR_setCPUSpeedAuto PLAT_setCPUSpeedAuto
 
 enum {
 	CPU_CORE_EFFICIENCY,
@@ -696,7 +697,7 @@ void PLAT_powerOff(int reboot);
 
 void* PLAT_cpu_monitor(void* arg);
 void PLAT_setCPUSpeed(int speed); // enum
-void PLAT_setCustomCPUSpeed(int speed);
+void PLAT_setCPUSpeedAuto(void);
 // note: this affects the calling thread and every thread spawned from it (after)
 void PLAT_pinToCores(int core_type); // CPU_CORE_EFFICIENCY or CPU_CORE_PERFORMANCE
 void PLAT_setRumble(int strength);

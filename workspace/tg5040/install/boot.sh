@@ -44,10 +44,9 @@ if [ "$SHOW_SPLASH" = "yes" ] ; then
 	#SHOW_PID=$!
 fi
 
-echo userspace > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-CPU_PATH=/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed
-CPU_SPEED_PERF=2000000
-echo $CPU_SPEED_PERF > $CPU_PATH
+echo schedutil > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+echo 408000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+echo 2000000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
 
 # Remove stock loading splash
 sed -i '/^\/usr\/sbin\/pic2fb \/etc\/splash.png/d' /etc/init.d/runtrimui

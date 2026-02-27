@@ -27,8 +27,8 @@ SOURCE = $(TARGET).c ../common/utils.c ../common/api.c ../common/config.c ../com
 
 CC = $(CROSS_COMPILE)gcc
 CFLAGS  += $(OPT)
-CFLAGS  += $(INCDIR) -DPLATFORM=\"$(PLATFORM)\" -std=gnu99
-LDFLAGS	 += -lmsettings -lSDL2_image -lSDL2_ttf -lm -ldl -lz -lpthread
+CFLAGS  += $(INCDIR) -I../../$(PLATFORM)/libmsettings -DPLATFORM=\"$(PLATFORM)\" -std=gnu99
+LDFLAGS	 += -L../../$(PLATFORM)/libmsettings -lmsettings -lSDL2_image -lSDL2_ttf -lm -ldl -lz -lpthread
 
 PRODUCT= build/$(PLATFORM)/$(TARGET).elf
 

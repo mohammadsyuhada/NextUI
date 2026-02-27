@@ -33,6 +33,10 @@ main() {
     echo "1" >/tmp/stay_awake
     trap "cleanup" EXIT INT TERM HUP QUIT
 
+    # Set performance mode for NDS emulation
+    echo performance >/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+    echo 1608000 >/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+
     # Setup external directories
     mkdir -p "$SDCARD_PATH/Saves/NDS"
     mkdir -p "$SDCARD_PATH/Cheats/NDS"
@@ -42,15 +46,18 @@ main() {
     mkdir -p "$EMU_DIR/config"
     mkdir -p "$EMU_DIR/savestates"
 
-    # Apply device-specific config (Brick vs Smart Pro)
-    if [ "$DEVICE" = "brick" ]; then
-        DEVICE_CONFIG="$PAK_DIR/devices/trimui-brick/config"
-    else
-        DEVICE_CONFIG="$PAK_DIR/devices/trimui-smart-pro/config"
-    fi
-    if [ -d "$DEVICE_CONFIG" ]; then
-        cp "$DEVICE_CONFIG/drastic.cfg" "$SHARED_USERDATA_PATH/NDS-advanced-drastic/config/" 2>/dev/null || true
-        cp "$DEVICE_CONFIG/drastic.cf2" "$SHARED_USERDATA_PATH/NDS-advanced-drastic/config/" 2>/dev/null || true
+    # Apply device-specific config on first run only (don't overwrite user changes)
+    if [ ! -f "$SHARED_USERDATA_PATH/NDS-advanced-drastic/config/.tg5040_initialized" ]; then
+        if [ "$DEVICE" = "brick" ]; then
+            DEVICE_CONFIG="$PAK_DIR/devices/trimui-brick/config"
+        else
+            DEVICE_CONFIG="$PAK_DIR/devices/trimui-smart-pro/config"
+        fi
+        if [ -d "$DEVICE_CONFIG" ]; then
+            cp "$DEVICE_CONFIG/drastic.cfg" "$SHARED_USERDATA_PATH/NDS-advanced-drastic/config/" 2>/dev/null || true
+            cp "$DEVICE_CONFIG/drastic.cf2" "$SHARED_USERDATA_PATH/NDS-advanced-drastic/config/" 2>/dev/null || true
+        fi
+        touch "$SHARED_USERDATA_PATH/NDS-advanced-drastic/config/.tg5040_initialized"
     fi
 
     # Move any leftover cheats to centralized location

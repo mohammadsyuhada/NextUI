@@ -8,8 +8,7 @@
 
 static bool _simple_mode = false;
 
-#define EMULIST_CACHE_PATH "/tmp/emulist_cache.txt"
-#define ROMINDEX_CACHE_PATH "/tmp/romindex_cache.txt"
+// EMULIST_CACHE_PATH and ROMINDEX_CACHE_PATH defined in defines.h
 
 void Content_setSimpleMode(bool mode) {
 	_simple_mode = mode;

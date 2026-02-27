@@ -679,3 +679,235 @@ cleanup:
 	free(path);
 	return -1;
 }
+
+
+// Resolve URL redirects - follows redirect chain and returns final URL
+// Uses radio_net's TLS infrastructure (supports TLS 1.3)
+// Returns 0 on success, -1 on error
+int radio_net_resolve_url(const char* url, char* resolved_url, int resolved_url_size) {
+	if (!url || !resolved_url || resolved_url_size <= 0)
+		return -1;
+
+	char current_url[1024];
+	strncpy(current_url, url, sizeof(current_url) - 1);
+	current_url[sizeof(current_url) - 1] = '\0';
+
+	for (int depth = 0; depth < RADIO_NET_MAX_REDIRECTS; depth++) {
+		char* host = (char*)malloc(256);
+		char* path = (char*)malloc(512);
+		if (!host || !path) {
+			free(host);
+			free(path);
+			return -1;
+		}
+
+		int port;
+		bool is_https;
+		if (radio_net_parse_url(current_url, host, 256, &port, path, 512, &is_https) != 0) {
+			free(host);
+			free(path);
+			return -1;
+		}
+
+		FetchSSLContext* ssl_ctx = NULL;
+		int sock_fd = -1;
+
+		if (is_https) {
+			ssl_ctx = (FetchSSLContext*)calloc(1, sizeof(FetchSSLContext));
+			if (!ssl_ctx) {
+				free(host);
+				free(path);
+				return -1;
+			}
+
+			const char* pers = "radio_net_resolve";
+			mbedtls_net_init(&ssl_ctx->net);
+			mbedtls_ssl_init(&ssl_ctx->ssl);
+			mbedtls_ssl_config_init(&ssl_ctx->conf);
+			mbedtls_entropy_init(&ssl_ctx->entropy);
+			mbedtls_ctr_drbg_init(&ssl_ctx->ctr_drbg);
+
+			if (mbedtls_ctr_drbg_seed(&ssl_ctx->ctr_drbg, mbedtls_entropy_func, &ssl_ctx->entropy,
+									  (const unsigned char*)pers, strlen(pers)) != 0 ||
+				mbedtls_ssl_config_defaults(&ssl_ctx->conf, MBEDTLS_SSL_IS_CLIENT,
+											MBEDTLS_SSL_TRANSPORT_STREAM,
+											MBEDTLS_SSL_PRESET_DEFAULT) != 0 ||
+				mbedtls_ssl_setup(&ssl_ctx->ssl, &ssl_ctx->conf) != 0) {
+				goto resolve_cleanup;
+			}
+			mbedtls_ssl_conf_authmode(&ssl_ctx->conf, MBEDTLS_SSL_VERIFY_NONE);
+			mbedtls_ssl_conf_rng(&ssl_ctx->conf, mbedtls_ctr_drbg_random, &ssl_ctx->ctr_drbg);
+			mbedtls_ssl_set_hostname(&ssl_ctx->ssl, host);
+
+			char port_str[16];
+			snprintf(port_str, sizeof(port_str), "%d", port);
+			if (mbedtls_net_connect(&ssl_ctx->net, host, port_str, MBEDTLS_NET_PROTO_TCP) != 0) {
+				goto resolve_cleanup;
+			}
+
+			struct timeval tv = {RADIO_NET_TIMEOUT_SECONDS, 0};
+			setsockopt(ssl_ctx->net.fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+			setsockopt(ssl_ctx->net.fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+			mbedtls_ssl_set_bio(&ssl_ctx->ssl, &ssl_ctx->net, mbedtls_net_send, mbedtls_net_recv, NULL);
+
+			int ret, handshake_retries = 0;
+			while ((ret = mbedtls_ssl_handshake(&ssl_ctx->ssl)) != 0) {
+				if (ret == MBEDTLS_ERR_SSL_RECEIVED_NEW_SESSION_TICKET)
+					break;
+				if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+					LOG_error("[RadioNet] resolve SSL handshake failed: -0x%04X host=%s\n", -ret, host);
+					goto resolve_cleanup;
+				}
+				if (++handshake_retries > 100)
+					goto resolve_cleanup;
+				usleep(100000);
+			}
+			ssl_ctx->initialized = true;
+			sock_fd = ssl_ctx->net.fd;
+		} else {
+			struct addrinfo hints, *result = NULL;
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+			char port_str[16];
+			snprintf(port_str, sizeof(port_str), "%d", port);
+			if (getaddrinfo(host, port_str, &hints, &result) != 0 || !result) {
+				if (result)
+					freeaddrinfo(result);
+				free(host);
+				free(path);
+				return -1;
+			}
+			sock_fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+			if (sock_fd < 0 || connect(sock_fd, result->ai_addr, result->ai_addrlen) < 0) {
+				if (sock_fd >= 0)
+					close(sock_fd);
+				freeaddrinfo(result);
+				free(host);
+				free(path);
+				return -1;
+			}
+			freeaddrinfo(result);
+		}
+
+		// Send minimal GET request
+		char request[1024];
+		snprintf(request, sizeof(request),
+				 "GET %s HTTP/1.0\r\n"
+				 "Host: %s\r\n"
+				 "User-Agent: MusicPlayer/1.0\r\n"
+				 "Connection: close\r\n"
+				 "\r\n",
+				 path, host);
+
+		int sent;
+		if (ssl_ctx) {
+			sent = mbedtls_ssl_write(&ssl_ctx->ssl, (unsigned char*)request, strlen(request));
+		} else {
+			sent = send(sock_fd, request, strlen(request), 0);
+		}
+		if (sent < 0)
+			goto resolve_cleanup;
+
+		// Read response headers
+		char header_buf[4096];
+		int header_pos = 0;
+		while (header_pos < (int)sizeof(header_buf) - 1) {
+			char c;
+			int r;
+			if (ssl_ctx) {
+				r = mbedtls_ssl_read(&ssl_ctx->ssl, (unsigned char*)&c, 1);
+				if (SSL_READ_IS_RETRYABLE(r)) {
+					usleep(10000);
+					continue;
+				}
+			} else {
+				r = recv(sock_fd, &c, 1, 0);
+			}
+			if (r != 1)
+				break;
+			header_buf[header_pos++] = c;
+			if (header_pos >= 4 &&
+				header_buf[header_pos - 4] == '\r' && header_buf[header_pos - 3] == '\n' &&
+				header_buf[header_pos - 2] == '\r' && header_buf[header_pos - 1] == '\n')
+				break;
+		}
+		header_buf[header_pos] = '\0';
+
+		// Cleanup connection
+		if (ssl_ctx) {
+			mbedtls_ssl_close_notify(&ssl_ctx->ssl);
+			mbedtls_net_free(&ssl_ctx->net);
+			mbedtls_ssl_free(&ssl_ctx->ssl);
+			mbedtls_ssl_config_free(&ssl_ctx->conf);
+			mbedtls_ctr_drbg_free(&ssl_ctx->ctr_drbg);
+			mbedtls_entropy_free(&ssl_ctx->entropy);
+			free(ssl_ctx);
+			ssl_ctx = NULL;
+		} else {
+			close(sock_fd);
+			sock_fd = -1;
+		}
+
+		// Check for redirect
+		bool is_redirect = false;
+		char* first_line_end = strstr(header_buf, "\r\n");
+		if (first_line_end) {
+			is_redirect = (strstr(header_buf, " 301 ") && strstr(header_buf, " 301 ") < first_line_end) ||
+						  (strstr(header_buf, " 302 ") && strstr(header_buf, " 302 ") < first_line_end) ||
+						  (strstr(header_buf, " 303 ") && strstr(header_buf, " 303 ") < first_line_end) ||
+						  (strstr(header_buf, " 307 ") && strstr(header_buf, " 307 ") < first_line_end) ||
+						  (strstr(header_buf, " 308 ") && strstr(header_buf, " 308 ") < first_line_end);
+		}
+
+		if (is_redirect) {
+			char* loc = strcasestr(header_buf, "\nLocation:");
+			if (loc) {
+				loc += 10;
+				while (*loc == ' ' || *loc == '\t')
+					loc++;
+				char* end = loc;
+				while (*end && *end != '\r' && *end != '\n')
+					end++;
+				int rlen = end - loc;
+				if (rlen > 0 && rlen < (int)sizeof(current_url)) {
+					strncpy(current_url, loc, rlen);
+					current_url[rlen] = '\0';
+					free(host);
+					free(path);
+					continue; // Follow redirect
+				}
+			}
+			free(host);
+			free(path);
+			return -1;
+		}
+
+		// Not a redirect - this is the final URL
+		strncpy(resolved_url, current_url, resolved_url_size - 1);
+		resolved_url[resolved_url_size - 1] = '\0';
+		free(host);
+		free(path);
+		return 0;
+
+	resolve_cleanup:
+		if (ssl_ctx) {
+			if (ssl_ctx->initialized)
+				mbedtls_ssl_close_notify(&ssl_ctx->ssl);
+			mbedtls_net_free(&ssl_ctx->net);
+			mbedtls_ssl_free(&ssl_ctx->ssl);
+			mbedtls_ssl_config_free(&ssl_ctx->conf);
+			mbedtls_ctr_drbg_free(&ssl_ctx->ctr_drbg);
+			mbedtls_entropy_free(&ssl_ctx->entropy);
+			free(ssl_ctx);
+		} else if (sock_fd >= 0) {
+			close(sock_fd);
+		}
+		free(host);
+		free(path);
+		return -1;
+	}
+
+	return -1; // Too many redirects
+}

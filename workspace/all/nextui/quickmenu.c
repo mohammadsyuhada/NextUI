@@ -73,13 +73,9 @@ static void qm_toggle_with_overlay(void (*fn)(bool), int enable, const char* tit
 // ============================================
 
 #define SCREENREC_PID_FILE "/tmp/screenrecorder.pid"
-#define SCREENREC_OUTPUT_FILE "/tmp/recording_output.txt"
 #define SCREENREC_DIR SDCARD_PATH "/Videos/Recordings"
-#define SCREENREC_REC_TMPDIR SCREENREC_DIR "/.rec_tmp"
-#define SCREENREC_REC_STITCH SCREENREC_DIR "/.rec_stitch"
-#define SCREENREC_FRAMES_FILE "frames.raw"
-#define SCREENREC_TS_FILE "timestamps.txt"
 #define SCREENREC_FFMPEG "/usr/bin/ffmpeg"
+#define SCREENREC_ELF_PATH BIN_PATH "/screenrecorder.elf"
 #define SCREENREC_ICON_PATH RES_PATH "/icon-record.png"
 
 static SDL_Surface* icon_record = NULL;
@@ -97,11 +93,6 @@ static bool qm_is_recording(void) {
 	FILE* f = fopen(SCREENREC_PID_FILE, "r");
 	if (!f)
 		return false;
-	// On tg5050, PID file is just a flag (PID may be stale after game launch)
-	if (strcmp(PLATFORM, "tg5050") == 0) {
-		fclose(f);
-		return true;
-	}
 	int pid = 0;
 	fscanf(f, "%d", &pid);
 	fclose(f);
@@ -122,33 +113,39 @@ static bool qm_start_recording(void) {
 			 t->tm_hour, t->tm_min, t->tm_sec);
 
 	if (strcmp(PLATFORM, "tg5050") == 0) {
-		// File-based recording: capture frames to files, stitch on stop.
-		// No ffmpeg during recording — just raw frame + timestamp files.
-		mkdir_p(SCREENREC_REC_TMPDIR);
-
-		// Clear any leftover temp files from a previous interrupted recording
-		char path[MAX_PATH];
-		snprintf(path, sizeof(path), "%s/%s", SCREENREC_REC_TMPDIR, SCREENREC_FRAMES_FILE);
-		unlink(path);
-		snprintf(path, sizeof(path), "%s/%s", SCREENREC_REC_TMPDIR, SCREENREC_TS_FILE);
-		unlink(path);
-
-		// Save output filename so qm_stop_recording can find it
-		FILE* of = fopen(SCREENREC_OUTPUT_FILE, "w");
-		if (of) {
-			fprintf(of, "%s", output);
-			fclose(of);
+		// Bring cpu2 online for dedicated encoding
+		FILE* cpu2 = fopen("/sys/devices/system/cpu/cpu2/online", "w");
+		if (cpu2) {
+			fprintf(cpu2, "1");
+			fclose(cpu2);
 		}
 
-		// Write PID file as recording-active flag
-		FILE* f = fopen(SCREENREC_PID_FILE, "w");
-		if (!f)
-			return false;
-		fprintf(f, "%d", getpid());
-		fclose(f);
-
-		// Trigger capture system to pick up recording immediately
+		// Trigger capture system to activate shm writing
 		PLAT_setCapturePipeFd(0);
+
+		char w_str[16], h_str[16];
+		snprintf(w_str, sizeof(w_str), "%d", FIXED_WIDTH);
+		snprintf(h_str, sizeof(h_str), "%d", FIXED_HEIGHT);
+
+		pid_t pid = fork();
+		if (pid < 0)
+			return false;
+
+		if (pid == 0) {
+			setsid();
+			freopen("/dev/null", "r", stdin);
+			freopen("/dev/null", "w", stdout);
+			freopen("/dev/null", "w", stderr);
+			execl(SCREENREC_ELF_PATH, "screenrecorder",
+				  output, w_str, h_str, (char*)NULL);
+			_exit(1);
+		}
+
+		// Brief check that screenrecorder started
+		usleep(200000);
+		if (waitpid(pid, NULL, WNOHANG) != 0)
+			return false;
+
 		return true;
 	}
 
@@ -190,164 +187,40 @@ static bool qm_start_recording(void) {
 	return true;
 }
 
-// Write all bytes to fd, handling partial writes. Returns 0 on success.
-static int write_all(int fd, const uint8_t* buf, size_t len) {
-	while (len > 0) {
-		ssize_t n = write(fd, buf, len);
-		if (n < 0)
-			return -1;
-		buf += n;
-		len -= n;
-	}
-	return 0;
-}
-
 static void qm_stop_recording(void) {
 	if (strcmp(PLATFORM, "tg5050") == 0) {
-		// Remove PID file to signal capture system to stop writing frames
+		// Read PID from screenrecorder's PID file
+		FILE* f = fopen(SCREENREC_PID_FILE, "r");
+		if (!f) {
+			remove(SCREENREC_PID_FILE);
+			return;
+		}
+		int pid = 0;
+		fscanf(f, "%d", &pid);
+		fclose(f);
+		if (pid <= 0) {
+			remove(SCREENREC_PID_FILE);
+			return;
+		}
+
+		// Send SIGTERM and wait for screenrecorder to finish encoding
+		kill(pid, SIGTERM);
+		for (int i = 0; i < 10; i++) {
+			usleep(500000);
+			int wr = waitpid(pid, NULL, WNOHANG);
+			if (wr == pid || (wr < 0 && kill(pid, 0) != 0))
+				break;
+		}
+		kill(pid, SIGKILL);
+		waitpid(pid, NULL, 0);
 		remove(SCREENREC_PID_FILE);
-		// Synchronously close recording files (waits for worker to finish current frame)
-		PLAT_captureRecStop();
 
-		// Read the target output path
-		char output[MAX_PATH] = "";
-		FILE* of = fopen(SCREENREC_OUTPUT_FILE, "r");
-		if (of) {
-			if (!fgets(output, sizeof(output), of))
-				output[0] = '\0';
-			fclose(of);
+		// Take cpu2 offline
+		FILE* cpu2 = fopen("/sys/devices/system/cpu/cpu2/online", "w");
+		if (cpu2) {
+			fprintf(cpu2, "0");
+			fclose(cpu2);
 		}
-		remove(SCREENREC_OUTPUT_FILE);
-
-		// Rename temp dir so a new recording can start immediately
-		rename(SCREENREC_REC_TMPDIR, SCREENREC_REC_STITCH);
-
-		char frames_path[MAX_PATH], ts_path[MAX_PATH];
-		snprintf(frames_path, sizeof(frames_path), "%s/%s", SCREENREC_REC_STITCH, SCREENREC_FRAMES_FILE);
-		snprintf(ts_path, sizeof(ts_path), "%s/%s", SCREENREC_REC_STITCH, SCREENREC_TS_FILE);
-
-		// Verify we have data to stitch
-		if (output[0] == '\0' || access(frames_path, F_OK) != 0 || access(ts_path, F_OK) != 0) {
-			unlink(frames_path);
-			unlink(ts_path);
-			rmdir(SCREENREC_REC_STITCH);
-			return;
-		}
-
-		// Fork stitching process: reads frames + timestamps, pipes to ffmpeg
-		pid_t stitch_pid = fork();
-		if (stitch_pid < 0) {
-			unlink(frames_path);
-			unlink(ts_path);
-			rmdir(SCREENREC_REC_STITCH);
-			return;
-		}
-		if (stitch_pid == 0) {
-			setsid();
-			freopen("/dev/null", "r", stdin);
-			freopen("/dev/null", "w", stdout);
-			freopen("/dev/null", "w", stderr);
-			PWR_pinToCores(CPU_CORE_EFFICIENCY);
-
-			int frame_w = FIXED_WIDTH;
-			int frame_h = FIXED_HEIGHT;
-			size_t frame_size = (size_t)frame_w * frame_h * 4;
-			char video_size[32];
-			snprintf(video_size, sizeof(video_size), "%dx%d", frame_w, frame_h);
-
-			// Create pipe to ffmpeg
-			int pipe_fds[2];
-			if (pipe(pipe_fds) < 0)
-				_exit(1);
-
-			pid_t ffmpeg_pid = fork();
-			if (ffmpeg_pid < 0)
-				_exit(1);
-			if (ffmpeg_pid == 0) {
-				close(pipe_fds[1]);
-				dup2(pipe_fds[0], STDIN_FILENO);
-				close(pipe_fds[0]);
-				execl(SCREENREC_FFMPEG, "ffmpeg", "-nostdin",
-					  "-f", "rawvideo", "-pixel_format", "rgba",
-					  "-video_size", video_size, "-framerate", "30",
-					  "-i", "pipe:0",
-					  "-vf", "vflip",
-					  "-c:v", "mjpeg", "-q:v", "10",
-					  "-y", output,
-					  (char*)NULL);
-				_exit(1);
-			}
-			close(pipe_fds[0]);
-
-			// Read timestamps
-			FILE* tsf = fopen(ts_path, "r");
-			int frame_fd = open(frames_path, O_RDONLY);
-			uint8_t* frame = malloc(frame_size);
-			if (!tsf || frame_fd < 0 || !frame) {
-				if (tsf)
-					fclose(tsf);
-				if (frame_fd >= 0)
-					close(frame_fd);
-				free(frame);
-				close(pipe_fds[1]);
-				kill(ffmpeg_pid, SIGKILL);
-				waitpid(ffmpeg_pid, NULL, 0);
-				goto stitch_cleanup;
-			}
-
-			uint32_t cur_ts = 0, next_ts = 0;
-			int has_cur = (fscanf(tsf, "%u", &cur_ts) == 1);
-			while (has_cur) {
-				// Read one frame
-				ssize_t total_read = 0;
-				while ((size_t)total_read < frame_size) {
-					ssize_t n = read(frame_fd, frame + total_read, frame_size - total_read);
-					if (n <= 0)
-						break;
-					total_read += n;
-				}
-				if ((size_t)total_read < frame_size)
-					break;
-
-				// Peek next timestamp
-				int has_next = (fscanf(tsf, "%u", &next_ts) == 1);
-
-				// Calculate how many 15fps frames this should span
-				int repeats = 1;
-				if (has_next) {
-					uint32_t gap = next_ts - cur_ts;
-					repeats = (gap + 16) / 33; // round to nearest at 30fps
-					if (repeats < 1)
-						repeats = 1;
-					if (repeats > 30)
-						repeats = 30; // cap at 2 seconds per frame
-				}
-
-				// Write frame repeated times to fill the timeline
-				for (int r = 0; r < repeats; r++) {
-					if (write_all(pipe_fds[1], frame, frame_size) < 0)
-						goto stitch_done;
-				}
-
-				cur_ts = next_ts;
-				has_cur = has_next;
-			}
-
-		stitch_done:
-			fclose(tsf);
-			close(frame_fd);
-			free(frame);
-			close(pipe_fds[1]); // EOF to ffmpeg
-			waitpid(ffmpeg_pid, NULL, 0);
-
-		stitch_cleanup:
-			unlink(frames_path);
-			unlink(ts_path);
-			rmdir(SCREENREC_REC_STITCH);
-			_exit(0);
-		}
-
-		// Parent: don't wait for stitcher — it runs in background
 		return;
 	}
 

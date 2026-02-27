@@ -100,13 +100,9 @@ echo 0 > /sys/class/led_anim/max_scale
 # start gpio input daemon
 trimui_inputd &
 
-echo userspace > /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor
+echo schedutil > /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor
 echo 408000 > /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq
-echo 2160000 > /sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq
-
-BIG_PATH=/sys/devices/system/cpu/cpu4/cpufreq/scaling_setspeed
-CPU_SPEED_PERF=2160000
-echo $CPU_SPEED_PERF > $BIG_PATH
+echo 408000 > /sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq
 
 echo schedutil > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 echo 408000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
@@ -187,13 +183,23 @@ NEXT_PATH="/tmp/next"
 touch "$EXEC_PATH"  && sync
 while [ -f $EXEC_PATH ]; do
 	nextui.elf &> $LOGS_PATH/nextui.txt
-	echo $CPU_SPEED_PERF > $BIG_PATH
 
 	if [ -f $NEXT_PATH ]; then
 		CMD=`cat $NEXT_PATH`
 		eval $CMD
 		rm -f $NEXT_PATH
-		echo $CPU_SPEED_PERF > $BIG_PATH
+		# Restore CPU state (games/tools may change governor, freq, and cores)
+		echo 0 > /sys/devices/system/cpu/cpu2/online 2>/dev/null
+		echo 0 > /sys/devices/system/cpu/cpu3/online 2>/dev/null
+		echo 0 > /sys/devices/system/cpu/cpu5/online 2>/dev/null
+		echo 0 > /sys/devices/system/cpu/cpu6/online 2>/dev/null
+		echo 0 > /sys/devices/system/cpu/cpu7/online 2>/dev/null
+		echo schedutil > /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor 2>/dev/null
+		echo 408000 > /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq 2>/dev/null
+		echo 408000 > /sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq 2>/dev/null
+		echo schedutil > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null
+		echo 408000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq 2>/dev/null
+		echo 2000000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null
 	fi
 
 	if [ -f "/tmp/poweroff" ]; then

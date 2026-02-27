@@ -15,6 +15,7 @@
 #include "wget_fetch.h"
 
 // PortMaster paths
+#define TOOL_PAK_DIR TOOLS_PATH "/PortMaster.pak"
 #define PORTS_PAK_DIR SDCARD_PATH "/Emus/" PLATFORM "/PORTS.pak"
 #define PORTMASTER_DIR SDCARD_PATH "/Emus/shared/PortMaster"
 #define PUGWASH_PATH PORTMASTER_DIR "/pugwash"
@@ -88,9 +89,29 @@ static bool bash_available(void) {
 	return access(BASH_PATH, X_OK) == 0;
 }
 
+static void invalidate_emulist_cache(void) {
+	unlink(EMULIST_CACHE_PATH);
+	unlink(ROMINDEX_CACHE_PATH);
+}
+
 static void cleanup_portmaster(void) {
 	char cmd[512];
 	snprintf(cmd, sizeof(cmd), "rm -rf '%s'", PORTMASTER_DIR);
+	system(cmd);
+	snprintf(cmd, sizeof(cmd), "rm -rf '%s'", PORTS_PAK_DIR);
+	system(cmd);
+	invalidate_emulist_cache();
+}
+
+static void install_ports_pak(void) {
+	char cmd[1024];
+	snprintf(cmd, sizeof(cmd),
+			 "mkdir -p '%s/files' && "
+			 "cp -f '%s/ports_launch.sh' '%s/launch.sh' && "
+			 "cp -f '%s/files/'* '%s/files/'",
+			 PORTS_PAK_DIR,
+			 TOOL_PAK_DIR, PORTS_PAK_DIR,
+			 TOOL_PAK_DIR, PORTS_PAK_DIR);
 	system(cmd);
 }
 
@@ -227,7 +248,7 @@ static void fix_port_scripts(void) {
 static void set_controller_layout(const char* layout) {
 	char cmd[512];
 	snprintf(cmd, sizeof(cmd), "cp -f '%s/files/gamecontrollerdb_%s.txt' '%s/gamecontrollerdb.txt'",
-			 PORTS_PAK_DIR, layout, PORTMASTER_DIR);
+			 TOOL_PAK_DIR, layout, PORTMASTER_DIR);
 	system(cmd);
 }
 
@@ -326,11 +347,12 @@ static void render_screen(void) {
 		UI_renderMenuBar(screen, "PortMaster");
 		{
 			char* lines = "PortMaster is not installed.\nPress A to download and install.";
-			int y = screen->h / 2 - SCALE1(FONT_LARGE);
-			GFX_blitText(font.large, lines, SCALE1(4), COLOR_WHITE, screen,
+			int line_h = SCALE1(FONT_LARGE + 4);
+			int y = screen->h / 2 - line_h;
+			GFX_blitText(font.large, lines, line_h, COLOR_WHITE, screen,
 						 &(SDL_Rect){SCALE1(PADDING), y, screen->w - SCALE1(PADDING * 2), screen->h});
 		}
-		UI_renderButtonHintBar(screen, (char*[]){"A", "INSTALL", "B", "BACK", NULL});
+		UI_renderButtonHintBar(screen, (char*[]){"B", "BACK", "A", "INSTALL", NULL});
 		break;
 
 	case PM_STATE_DOWNLOADING:
@@ -414,9 +436,9 @@ static void render_screen(void) {
 
 		bool is_layout = (menu_selected == MENU_LAYOUT);
 		UI_renderButtonHintBar(screen, (char*[]){
-										   "B", "EXIT",
 										   is_layout ? "LEFT/RIGHT" : "A",
 										   is_layout ? "CHANGE" : "OPEN",
+										   "B", "EXIT",
 										   NULL});
 		break;
 	}
@@ -580,6 +602,8 @@ int main(int argc, char* argv[]) {
 			patch_platform_py();
 			patch_device_info();
 			ensure_default_config();
+			install_ports_pak();
+			invalidate_emulist_cache();
 			{
 				char cmd[512];
 				snprintf(cmd, sizeof(cmd), "chmod -R +x '%s' 2>/dev/null", PORTMASTER_DIR);

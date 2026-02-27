@@ -498,6 +498,12 @@ static char* read_line_cr(char* buf, int size, FILE* fp) {
 static int run_rsync_phase(int phase) {
 	char cmd[1024];
 	const char* rsync_opts = "-rtv --update --inplace --no-perms --omit-dir-times --info=progress2";
+	const char* shared_excludes =
+		"--exclude=battery_logs.sqlite "
+		"--exclude=game_logs.sqlite "
+		"--exclude=ledsettings.txt "
+		"--exclude=ledsettings_brick.txt "
+		"--exclude=minuisettings.txt";
 
 	phase_files_done = 0;
 	phase_files_total = 0;
@@ -505,16 +511,16 @@ static int run_rsync_phase(int phase) {
 
 	switch (phase) {
 	case 1:
-		snprintf(cmd, sizeof(cmd), "%s %s %s/ rsync://%s:%d/shared/ 2>&1",
-				 RSYNC_BIN, rsync_opts, SHARED_DATA_PATH, peer_ip, SYNC_RSYNC_PORT);
+		snprintf(cmd, sizeof(cmd), "%s %s %s %s/ rsync://%s:%d/shared/ 2>&1",
+				 RSYNC_BIN, rsync_opts, shared_excludes, SHARED_DATA_PATH, peer_ip, SYNC_RSYNC_PORT);
 		break;
 	case 2:
 		snprintf(cmd, sizeof(cmd), "%s %s %s/ rsync://%s:%d/saves/ 2>&1",
 				 RSYNC_BIN, rsync_opts, SAVES_PATH, peer_ip, SYNC_RSYNC_PORT);
 		break;
 	case 3:
-		snprintf(cmd, sizeof(cmd), "%s %s rsync://%s:%d/shared/ %s/ 2>&1",
-				 RSYNC_BIN, rsync_opts, peer_ip, SYNC_RSYNC_PORT, SHARED_DATA_PATH);
+		snprintf(cmd, sizeof(cmd), "%s %s %s rsync://%s:%d/shared/ %s/ 2>&1",
+				 RSYNC_BIN, rsync_opts, shared_excludes, peer_ip, SYNC_RSYNC_PORT, SHARED_DATA_PATH);
 		break;
 	case 4:
 		snprintf(cmd, sizeof(cmd), "%s %s rsync://%s:%d/saves/ %s/ 2>&1",
@@ -1082,6 +1088,10 @@ int main(int argc, char* argv[]) {
 				PWR_enableAutosleep();
 
 				if (sync_result == 0) {
+					if (sync_roms) {
+						unlink(EMULIST_CACHE_PATH);
+						unlink(ROMINDEX_CACHE_PATH);
+					}
 					state = STATE_DONE;
 				} else {
 					state = STATE_ERROR;

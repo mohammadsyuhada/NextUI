@@ -39,6 +39,8 @@
 #define CHANGE_DISC_PATH "/tmp/change_disc.txt"
 #define RESUME_SLOT_PATH "/tmp/resume_slot.txt"
 #define NOUI_PATH "/tmp/noui"
+#define EMULIST_CACHE_PATH "/tmp/emulist_cache.txt"
+#define ROMINDEX_CACHE_PATH "/tmp/romindex_cache.txt"
 
 #define TRIAD_WHITE 0xff, 0xff, 0xff
 #define TRIAD_BLACK 0x00, 0x00, 0x00

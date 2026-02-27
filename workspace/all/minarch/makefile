@@ -32,8 +32,8 @@ endif
 
 CC = $(CROSS_COMPILE)gcc
 CFLAGS  += $(OPT)
-CFLAGS  += $(INCDIR) -DPLATFORM=\"$(PLATFORM)\" -std=gnu99
-LDFLAGS	 += -lmsettings -lsamplerate
+CFLAGS  += $(INCDIR) -I../../$(PLATFORM)/libmsettings -DPLATFORM=\"$(PLATFORM)\" -std=gnu99
+LDFLAGS	 += -L../../$(PLATFORM)/libmsettings -lmsettings -lsamplerate
 
 ifeq ($(PROFILE), 1)
 CFLAGS  += -pg

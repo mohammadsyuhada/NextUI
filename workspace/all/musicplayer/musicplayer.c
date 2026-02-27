@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
 	(void)argv;
 
 	screen = GFX_init(MODE_MAIN);
-	PWR_pinToCores(CPU_CORE_PERFORMANCE);
+	PWR_pinToCores(CPU_CORE_EFFICIENCY);
 	UI_showSplashScreen(screen, "Music Player");
 
 	InitSettings();

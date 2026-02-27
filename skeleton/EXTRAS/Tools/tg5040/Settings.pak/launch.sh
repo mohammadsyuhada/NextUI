@@ -2,11 +2,7 @@
 
 cd $(dirname "$0")
 
-# Set CPU frequency for settings menu (power saving: 600 MHz)
-echo userspace > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null
-echo 600000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed 2>/dev/null
+# Low fixed frequency for simple UI
+echo 600000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null
 
 ./settings.elf &> "$LOGS_PATH/settings.txt"
-
-# Restore default CPU governor on exit
-echo ondemand > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null

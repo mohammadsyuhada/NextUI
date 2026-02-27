@@ -426,10 +426,7 @@ int main(int argc, char* argv[]) {
 	GFX_clear(screen);
 
 	IndicatorType show_setting = INDICATOR_NONE;
-	pthread_t cpucheckthread = 0;
-	if (pthread_create(&cpucheckthread, NULL, PLAT_cpu_monitor, NULL) == 0) {
-		pthread_detach(cpucheckthread);
-	}
+	PWR_setCPUSpeed(CPU_SPEED_MENU);
 
 	int selected_row = top->selected - top->start;
 	bool list_show_entry_names = true;

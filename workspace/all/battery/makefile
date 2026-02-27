@@ -25,8 +25,8 @@ SOURCE = $(TARGET).c ../common/utils.c ../common/api.c ../common/config.c ../com
 
 CC = $(CROSS_COMPILE)gcc
 CFLAGS  += $(OPT)
-CFLAGS  += $(INCDIR) -DPLATFORM=\"$(PLATFORM)\" -std=gnu99
-LDFLAGS	 += -lmsettings -lbatmondb -lsqlite3
+CFLAGS  += $(INCDIR) -I../../$(PLATFORM)/libmsettings -DPLATFORM=\"$(PLATFORM)\" -std=gnu99
+LDFLAGS	 += -L../../$(PLATFORM)/libmsettings -lmsettings -lbatmondb -lsqlite3
 
 PRODUCT= build/$(PLATFORM)/$(TARGET).elf
 

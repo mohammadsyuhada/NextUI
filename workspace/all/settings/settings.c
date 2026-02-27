@@ -1390,8 +1390,6 @@ static void reset_ra_page(void) {
 	settings_page_reset_all(&ra_page);
 }
 
-#define EMULIST_CACHE_PATH "/tmp/emulist_cache.txt"
-#define ROMINDEX_CACHE_PATH "/tmp/romindex_cache.txt"
 static SettingItem* refresh_emulist_item = NULL;
 static void refresh_emulist(void) {
 	unlink(EMULIST_CACHE_PATH);

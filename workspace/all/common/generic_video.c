@@ -1750,34 +1750,8 @@ static void capture_check(void) {
 	bool rec_active = (access("/tmp/screenrecorder.pid", F_OK) == 0);
 	bool needed = (access("/tmp/screenshot.pid", F_OK) == 0 || rec_active);
 
-	// Open recording files when recording starts (or resumes after game launch)
-	if (rec_active && capture_rec_fd < 0) {
-		mkdir_p(CAPTURE_REC_TMPDIR);
-		int fd = open(CAPTURE_REC_FRAMES_PATH, O_WRONLY | O_CREAT | O_APPEND, 0666);
-		FILE* tsf = fopen(CAPTURE_REC_TS_PATH, "a");
-		// Set both atomically under lock so worker sees consistent state
-		pthread_mutex_lock(&capture_worker_mutex);
-		capture_rec_fd = fd;
-		capture_ts_file = tsf;
-		pthread_mutex_unlock(&capture_worker_mutex);
-	}
-	// Request worker to close recording files (it owns them during processing)
-	if (!rec_active && capture_rec_fd >= 0 && capture_worker_running) {
-		pthread_mutex_lock(&capture_worker_mutex);
-		capture_rec_close_requested = true;
-		pthread_cond_signal(&capture_worker_cond);
-		while (capture_rec_fd >= 0)
-			pthread_cond_wait(&capture_rec_closed_cond, &capture_worker_mutex);
-		pthread_mutex_unlock(&capture_worker_mutex);
-	} else if (!rec_active && capture_rec_fd >= 0) {
-		// Worker not running, safe to close directly
-		close(capture_rec_fd);
-		capture_rec_fd = -1;
-		if (capture_ts_file) {
-			fclose(capture_ts_file);
-			capture_ts_file = NULL;
-		}
-	}
+	// Note: recording files are no longer opened here — screenrecorder.elf
+	// reads from shm directly and pipes to ffmpeg in real-time.
 
 	if (needed && !capture_active) {
 		capture_frame_size = device_width * device_height * 4;

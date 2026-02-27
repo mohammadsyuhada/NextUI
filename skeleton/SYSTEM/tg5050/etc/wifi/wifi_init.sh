@@ -6,18 +6,46 @@ WPA_SUPPLICANT_CONF="/etc/wifi/wpa_supplicant/wpa_supplicant.conf"
 start() {
 	# Load WiFi driver module if not loaded
 	if ! lsmod | grep -q aic8800_fdrv; then
-		modprobe aic8800_fdrv.ko 2>/dev/null
-		sleep 0.5
+		retries=0
+		while [ $retries -lt 5 ]; do
+			modprobe aic8800_fdrv 2>/dev/null
+			sleep 0.5
+			if lsmod | grep -q aic8800_fdrv; then
+				break
+			fi
+			retries=$((retries + 1))
+			sleep 1
+		done
 	fi
-	
+
+	# Wait for wlan0 interface to appear (driver may need time after module load)
+	retries=0
+	while [ $retries -lt 10 ]; do
+		if [ -d "/sys/class/net/$WIFI_INTERFACE" ]; then
+			break
+		fi
+		retries=$((retries + 1))
+		sleep 0.5
+	done
+
+	if [ ! -d "/sys/class/net/$WIFI_INTERFACE" ]; then
+		echo "wifi_init: $WIFI_INTERFACE did not appear after module load" >&2
+		return 1
+	fi
+
 	# Unblock wifi via rfkill
 	rfkill unblock wifi 2>/dev/null
-	
-	# Bring up the interface
-	ip link set $WIFI_INTERFACE up 2>/dev/null
+
+	# Bring up the interface (with retry)
+	retries=0
+	while [ $retries -lt 5 ]; do
+		ip link set $WIFI_INTERFACE up 2>/dev/null && break
+		retries=$((retries + 1))
+		sleep 0.5
+	done
 
 	mkdir -p /etc/wifi/sockets
-	
+
 	# Create default wpa_supplicant.conf if it doesn't exist
 	if [ ! -f "$WPA_SUPPLICANT_CONF" ]; then
 		mkdir -p "$(dirname "$WPA_SUPPLICANT_CONF")"
@@ -30,15 +58,24 @@ wowlan_triggers=any
 
 EOF
 	fi
-	
-	# Start wpa_supplicant if not running
+
+	# Start wpa_supplicant if not running (with retry)
 	if ! pidof wpa_supplicant > /dev/null 2>&1; then
-		wpa_supplicant -B -i $WIFI_INTERFACE -c $WPA_SUPPLICANT_CONF -O /etc/wifi/sockets -D nl80211 2>/dev/null
-		sleep 0.5
+		retries=0
+		while [ $retries -lt 5 ]; do
+			wpa_supplicant -B -i $WIFI_INTERFACE -c $WPA_SUPPLICANT_CONF -O /etc/wifi/sockets -D nl80211 2>/dev/null
+			sleep 0.5
+			if pidof wpa_supplicant > /dev/null 2>&1; then
+				break
+			fi
+			retries=$((retries + 1))
+			sleep 0.5
+		done
 	fi
 
 	# Start DHCP client to obtain IP address
-	if ! pidof udhcpc > /dev/null 2>&1; then	
+	# udhcpc -b exits after obtaining a lease, so just run it once
+	if ! pidof udhcpc > /dev/null 2>&1; then
 		udhcpc -i $WIFI_INTERFACE -b 2>/dev/null
 	fi
 }

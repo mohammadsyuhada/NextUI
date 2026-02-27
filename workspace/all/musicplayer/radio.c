@@ -305,9 +305,9 @@ static int connect_stream(const char* url) {
 				break;
 			}
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				LOG_error("mbedtls_ssl_handshake failed: -0x%04X\n", -ret);
+				LOG_error("mbedtls_ssl_handshake failed: -0x%04X host=%s\n", -ret, host);
 				ssl_cleanup();
-				snprintf(radio.error_msg, sizeof(radio.error_msg), "SSL handshake failed");
+				snprintf(radio.error_msg, sizeof(radio.error_msg), "SSL handshake failed (host=%s)", host);
 				return -1;
 			}
 			if (++handshake_retries > max_handshake_retries) {
@@ -1504,17 +1504,53 @@ int Radio_play(const char* url) {
 	// Direct stream (Shoutcast/Icecast)
 	radio.stream_type = STREAM_TYPE_DIRECT;
 
-	// Connect with redirect handling (max 5 redirects)
+	// For HTTPS URLs, pre-resolve redirects using radio_net's TLS stack
+	// (handles TLS 1.3 servers that radio.c's built-in SSL may struggle with)
 	char current_url[RADIO_MAX_URL];
 	strncpy(current_url, url, RADIO_MAX_URL - 1);
 	current_url[RADIO_MAX_URL - 1] = '\0';
 
+	if (strncmp(current_url, "https://", 8) == 0) {
+		char resolved[RADIO_MAX_URL];
+		if (radio_net_resolve_url(current_url, resolved, RADIO_MAX_URL) == 0) {
+			LOG_info("Resolved stream URL: %s\n", resolved);
+			strncpy(current_url, resolved, RADIO_MAX_URL - 1);
+			current_url[RADIO_MAX_URL - 1] = '\0';
+		}
+	}
+
 	int max_redirects = 5;
 	int header_result;
+	bool tried_http_fallback = false;
 
+connect_attempt:
 	for (int redirect_count = 0; redirect_count <= max_redirects; redirect_count++) {
 		// Connect to stream
 		if (connect_stream(current_url) != 0) {
+			// If HTTPS connection failed, try HTTP fallback
+			if (!tried_http_fallback && strncmp(current_url, "https://", 8) == 0) {
+				LOG_info("HTTPS stream connection failed, trying HTTP fallback\n");
+				tried_http_fallback = true;
+
+				// Convert https:// to http:// and adjust port
+				char http_url[RADIO_MAX_URL];
+				char host[256], path[512];
+				int port;
+				bool is_https;
+				if (radio_net_parse_url(current_url, host, 256, &port, path, 512, &is_https) == 0) {
+					// Use port 80 for HTTP (unless a non-standard port was specified)
+					if (port == 443)
+						port = 80;
+					if (port == 80) {
+						snprintf(http_url, RADIO_MAX_URL, "http://%s%s", host, path);
+					} else {
+						snprintf(http_url, RADIO_MAX_URL, "http://%s:%d%s", host, port, path);
+					}
+					strncpy(current_url, http_url, RADIO_MAX_URL - 1);
+					current_url[RADIO_MAX_URL - 1] = '\0';
+					goto connect_attempt;
+				}
+			}
 			radio.state = RADIO_STATE_ERROR;
 			return -1;
 		}

@@ -1,4 +1,8 @@
 #!/bin/sh
+# Mute speaker amp to suppress pop during SDL audio init
+amixer cset numid=30 0 >/dev/null 2>&1
+amixer cset numid=29 0 >/dev/null 2>&1
+
 PAK_DIR="$(dirname "$0")"
 PAK_NAME="$(basename "$PAK_DIR")"
 PAK_NAME="${PAK_NAME%.*}"
@@ -17,6 +21,15 @@ EMU_DIR="$SDCARD_PATH/Emus/shared/PortMaster"
 BB="$SHARED_SYSTEM_PATH/bin/busybox"
 
 export PATH="$EMU_DIR:$SHARED_SYSTEM_PATH/bin:$PATH"
+
+# tg5050 ships newer lib versions than what some bundled binaries expect
+# (can't symlink on exFAT, so copy the actual files)
+for lib_pair in "libffi.so.7 libffi.so.8" "libncurses.so.5 libncurses.so.6" "libncursesw.so.5 libncursesw.so.6"; do
+    old="${lib_pair% *}" new="${lib_pair#* }"
+    [ ! -e "$SHARED_SYSTEM_PATH/lib/$old" ] && [ -e "/usr/lib/$new" ] && \
+        cp "/usr/lib/$new" "$SHARED_SYSTEM_PATH/lib/$old"
+done
+
 export LD_LIBRARY_PATH="$SHARED_SYSTEM_PATH/lib:/usr/trimui/lib:$LD_LIBRARY_PATH"
 export SSL_CERT_FILE="$SHARED_SYSTEM_PATH/etc/ssl/certs/ca-certificates.crt"
 export SDL_GAMECONTROLLERCONFIG_FILE="$EMU_DIR/gamecontrollerdb.txt"
@@ -76,15 +89,6 @@ cleanup() {
     umount "$XDG_DATA_HOME/PortMaster" 2>/dev/null || true
     umount "$TEMP_DATA_DIR/ports" 2>/dev/null || true
     rm -rf "$TEMP_DATA_DIR" 2>/dev/null || true
-
-    # Restore CPU governor
-    cpu_state="$USERDATA_PATH/PORTS-portmaster"
-    if [ -f "$cpu_state/cpu_governor.txt" ]; then
-        cat "$cpu_state/cpu_governor.txt" >/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        cat "$cpu_state/cpu_min_freq.txt" >/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq 2>/dev/null
-        cat "$cpu_state/cpu_max_freq.txt" >/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null
-        rm -f "$cpu_state/cpu_governor.txt" "$cpu_state/cpu_min_freq.txt" "$cpu_state/cpu_max_freq.txt"
-    fi
 }
 
 patch_control_txt() {
@@ -169,15 +173,18 @@ main() {
     # Create busybox wrappers (mount, umount, find, etc.) on first run
     create_busybox_wrappers
 
-    # Save current CPU state and set performance mode
-    cpu_dir="/sys/devices/system/cpu/cpu0/cpufreq"
-    cpu_state="$USERDATA_PATH/PORTS-portmaster"
-    cat "$cpu_dir/scaling_governor" >"$cpu_state/cpu_governor.txt"
-    cat "$cpu_dir/scaling_min_freq" >"$cpu_state/cpu_min_freq.txt"
-    cat "$cpu_dir/scaling_max_freq" >"$cpu_state/cpu_max_freq.txt"
-    echo performance >"$cpu_dir/scaling_governor"
-    echo 2000000 >"$cpu_dir/scaling_min_freq"
-    echo 2000000 >"$cpu_dir/scaling_max_freq"
+    # Bring all cores online for multi-threaded ports
+    for i in 2 3 5 6 7; do
+        echo 1 > /sys/devices/system/cpu/cpu$i/online 2>/dev/null
+    done
+
+    # Set CPU scaling — schedutil scales active cores to max, idle cores stay low
+    echo schedutil >/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+    echo 408000 >/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+    echo 1416000 >/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+    echo schedutil >/sys/devices/system/cpu/cpu4/cpufreq/scaling_governor
+    echo 408000 >/sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq
+    echo 2160000 >/sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq
 
     mkdir -p "$PORTS_DIR"
 
@@ -210,7 +217,16 @@ main() {
 
     echo "Starting port: $ROM_PATH"
     cd "$ROM_DIR"
+
+    # Unmute speaker after game audio has initialized
+    (sleep 5; amixer cset numid=30 1 >/dev/null 2>&1; amixer cset numid=29 1 >/dev/null 2>&1; syncsettings.elf) &
+    SYNC_PID=$!
+
     bash "$ROM_PATH"
+
+    kill $SYNC_PID 2>/dev/null || true
+    amixer cset numid=30 1 >/dev/null 2>&1 || true
+    amixer cset numid=29 1 >/dev/null 2>&1 || true
 }
 
 main "$@"

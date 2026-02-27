@@ -2982,26 +2982,18 @@ static int Config_getValue(char* cfg, const char* key, char* out_value, int* loc
 static void setOverclock(int i) {
 	overclock = i;
 	switch (i) {
-	case 0: {
-		useAutoCpu = 0;
+	case 0:
 		PWR_setCPUSpeed(CPU_SPEED_POWERSAVE);
 		break;
-	}
-	case 1: {
-		useAutoCpu = 0;
+	case 1:
 		PWR_setCPUSpeed(CPU_SPEED_NORMAL);
 		break;
-	}
-	case 2: {
-		useAutoCpu = 0;
+	case 2:
 		PWR_setCPUSpeed(CPU_SPEED_PERFORMANCE);
 		break;
-	}
-	case 3: {
-		PWR_setCPUSpeed(CPU_SPEED_NORMAL);
-		useAutoCpu = 1;
+	case 3:
+		PWR_setCPUSpeedAuto();
 		break;
-	}
 	}
 }
 static void Config_syncFrontend(char* key, int value) {
@@ -8819,8 +8811,8 @@ int main(int argc, char* argv[]) {
 	pthread_create(&cpucheckthread, &attr, PLAT_cpu_monitor, NULL);
 	pthread_attr_destroy(&attr);
 
-	setOverclock(2);					  // start up in performance mode, faster init
-	PWR_pinToCores(CPU_CORE_PERFORMANCE); // thread affinity
+	PWR_setCPUSpeed(CPU_SPEED_PERFORMANCE); // start up in performance mode, faster init
+	PWR_pinToCores(CPU_CORE_PERFORMANCE);	// thread affinity
 
 	char core_path[MAX_PATH];
 	char rom_path[MAX_PATH];

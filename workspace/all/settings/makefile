@@ -35,8 +35,8 @@ SOURCE = settings.c settings_menu.c settings_wifi.c settings_bt.c settings_led.c
 
 CC = $(CROSS_COMPILE)gcc
 CFLAGS += $(OPT)
-CFLAGS += $(INCDIR) -DPLATFORM=\"$(PLATFORM)\"
-LDFLAGS += -lmsettings
+CFLAGS += $(INCDIR) -I../../$(PLATFORM)/libmsettings -DPLATFORM=\"$(PLATFORM)\"
+LDFLAGS += -L../../$(PLATFORM)/libmsettings -lmsettings
 
 ifeq ($(PLATFORM), tg5040)
 CFLAGS += -DHAS_BTAGENT
