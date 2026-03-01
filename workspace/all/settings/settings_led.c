@@ -256,16 +256,16 @@ static void led_sync_coupled_inbrightness(int source_zone) {
 	}                                               \
 	static void led_set_brightness_##Z(int val) {   \
 		lightsDefault[Z].brightness = val;          \
-		led_apply_and_save();                       \
 		led_sync_coupled_brightness(Z);             \
+		led_apply_and_save();                       \
 	}                                               \
 	static int led_get_inbrightness_##Z(void) {     \
 		return lightsDefault[Z].inbrightness;       \
 	}                                               \
 	static void led_set_inbrightness_##Z(int val) { \
 		lightsDefault[Z].inbrightness = val;        \
-		led_apply_and_save();                       \
 		led_sync_coupled_inbrightness(Z);           \
+		led_apply_and_save();                       \
 	}
 
 LED_ZONE_CALLBACKS(0)
