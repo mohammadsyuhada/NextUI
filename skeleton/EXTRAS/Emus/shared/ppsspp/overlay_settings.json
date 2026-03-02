@@ -1,0 +1,108 @@
+{
+  "emulator": "ppsspp",
+  "config_file": "ppsspp.ini",
+  "config_section": "Graphics",
+  "options_hint": "Restart game to apply changes",
+  "save_state": true,
+  "load_state": true,
+  "sections": [
+    {
+      "name": "Rendering",
+      "items": [
+        {
+          "key": "InternalResolution",
+          "label": "Resolution",
+          "description": "Internal rendering resolution multiplier",
+          "type": "cycle",
+          "values": [0, 1, 2, 3, 4],
+          "labels": ["Auto", "1x", "2x", "3x", "4x"],
+          "default": 2
+        },
+        {
+          "key": "DisplayAspectRatio",
+          "label": "Aspect Ratio",
+          "description": "Display aspect ratio mode",
+          "type": "cycle",
+          "values": [0, 1, 2],
+          "labels": ["Auto", "Stretch", "16:9"],
+          "default": 0
+        },
+        {
+          "key": "TextureFiltering",
+          "label": "Texture Filter",
+          "description": "Texture filtering mode",
+          "type": "cycle",
+          "values": [1, 2, 3, 4],
+          "labels": ["Auto", "Nearest", "Linear", "Auto Max Quality"],
+          "default": 1
+        },
+        {
+          "key": "AnisotropyLevel",
+          "label": "Anisotropic",
+          "description": "Anisotropic texture filtering level",
+          "type": "cycle",
+          "values": [0, 1, 2, 3, 4],
+          "labels": ["Off", "2x", "4x", "8x", "16x"],
+          "default": 0
+        },
+        {
+          "key": "FrameSkip",
+          "label": "Frame Skip",
+          "description": "Number of frames to skip",
+          "type": "cycle",
+          "values": [0, 1, 2, 3],
+          "labels": ["Off", "1", "2", "3"],
+          "default": 0
+        },
+        {
+          "key": "FrameSkipType",
+          "label": "Frame Skip Type",
+          "description": "Frame skip method",
+          "type": "cycle",
+          "values": [0, 1],
+          "labels": ["Skip", "Duplicate"],
+          "default": 0
+        },
+        {
+          "key": "VSync",
+          "label": "VSync",
+          "description": "Vertical sync",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "key": "HardwareTransform",
+          "label": "HW Transform",
+          "description": "Hardware vertex transform",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "key": "SoftwareSkinning",
+          "label": "SW Skinning",
+          "description": "Software vertex skinning",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "key": "TexScalingLevel",
+          "label": "Texture Scaling",
+          "description": "Texture upscale level",
+          "type": "cycle",
+          "values": [1, 2, 3, 4, 5],
+          "labels": ["Off", "2x", "3x", "4x", "5x"],
+          "default": 1
+        },
+        {
+          "key": "TexScalingType",
+          "label": "Scaling Type",
+          "description": "Texture upscale algorithm",
+          "type": "cycle",
+          "values": [0, 1, 2, 3, 4],
+          "labels": ["xBRZ", "Hybrid", "Bicubic", "Hybrid+Bicubic", "JINC2"],
+          "default": 0
+        }
+      ]
+    }
+  ]
+}

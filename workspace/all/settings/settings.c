@@ -1744,7 +1744,7 @@ static void build_menu_tree(const DeviceInfo* dev) {
 	// ============================
 	idx = 0;
 	about_items[idx++] = (SettingItem)ITEM_STATIC_INIT(
-		"NextUI Redux version", "", get_about_version);
+		"NX Redux version", "", get_about_version);
 	about_items[idx++] = (SettingItem)ITEM_STATIC_INIT(
 		"Release date", "", get_about_release_date);
 	about_items[idx++] = (SettingItem)ITEM_STATIC_INIT(

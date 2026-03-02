@@ -15,6 +15,7 @@ REQUIRES_JSTEST=other/jstest
 REQUIRES_UNZIP60=other/unzip60
 REQUIRES_FILEMGR=other/NextCommander
 REQUIRES_MUPEN64PLUS=other/mupen64plus
+REQUIRES_PPSSPP=other/ppsspp
 
 all: readmes
 
@@ -43,10 +44,18 @@ $(REQUIRES_JSTEST):
 $(REQUIRES_UNZIP60):
 	git clone --depth 1 https://github.com/shauninman/unzip60.git $(REQUIRES_UNZIP60)
 
-$(REQUIRES_MUPEN64PLUS):
+$(REQUIRES_MUPEN64PLUS)/mupen64plus-core:
 	mkdir -p $(REQUIRES_MUPEN64PLUS)
 	git clone --depth 1 https://github.com/mupen64plus/mupen64plus-core.git $(REQUIRES_MUPEN64PLUS)/mupen64plus-core
 	git clone --depth 1 https://github.com/mupen64plus/mupen64plus-ui-console.git $(REQUIRES_MUPEN64PLUS)/mupen64plus-ui-console
+	cd $(REQUIRES_MUPEN64PLUS)/mupen64plus-ui-console && git apply ../mupen64plus-ui-console.patch
 	git clone --depth 1 --recurse-submodules https://github.com/gonetz/GLideN64.git $(REQUIRES_MUPEN64PLUS)/GLideN64-standalone
+	cd $(REQUIRES_MUPEN64PLUS)/GLideN64-standalone && git apply ../GLideN64-standalone.patch
+
+$(REQUIRES_PPSSPP)/ppsspp:
+	git clone https://github.com/hrydgard/ppsspp.git $(REQUIRES_PPSSPP)/ppsspp
+	cd $(REQUIRES_PPSSPP)/ppsspp && git submodule update --init --recursive
+	cd $(REQUIRES_PPSSPP)/ppsspp && git apply ../ppsspp.patch
+	cd $(REQUIRES_PPSSPP)/ppsspp/ffmpeg && git apply ../../ppsspp-ffmpeg.patch
 
 include ../all/readmes/makefile

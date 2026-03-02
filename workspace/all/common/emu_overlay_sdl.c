@@ -22,6 +22,29 @@
 #include <stdint.h>
 
 // ---------------------------------------------------------------------------
+// GLES3 VAO function pointers — loaded via SDL_GL_GetProcAddress to avoid
+// symbol conflicts with emulators that define these as stub function pointers
+// (e.g. PPSSPP's gl3stub.c shadows libGLESv2 symbols).
+// ---------------------------------------------------------------------------
+typedef void(GL_APIENTRY* PFNGLBINDVERTEXARRAYPROC)(GLuint array);
+typedef void(GL_APIENTRY* PFNGLDELETEVERTEXARRAYSPROC)(GLsizei n, const GLuint* arrays);
+typedef void(GL_APIENTRY* PFNGLGENVERTEXARRAYSPROC)(GLsizei n, GLuint* arrays);
+
+static PFNGLBINDVERTEXARRAYPROC pfn_glBindVertexArray = NULL;
+static PFNGLDELETEVERTEXARRAYSPROC pfn_glDeleteVertexArrays = NULL;
+static PFNGLGENVERTEXARRAYSPROC pfn_glGenVertexArrays = NULL;
+
+static void ovl_load_gl3_procs(void) {
+	if (pfn_glBindVertexArray)
+		return; // already loaded
+	pfn_glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)SDL_GL_GetProcAddress("glBindVertexArray");
+	pfn_glDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSPROC)SDL_GL_GetProcAddress("glDeleteVertexArrays");
+	pfn_glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)SDL_GL_GetProcAddress("glGenVertexArrays");
+	fprintf(stderr, "[OverlaySDL] GL3 procs: BindVAO=%p DeleteVAO=%p GenVAO=%p\n",
+			(void*)pfn_glBindVertexArray, (void*)pfn_glDeleteVertexArrays, (void*)pfn_glGenVertexArrays);
+}
+
+// ---------------------------------------------------------------------------
 // Scale factor & font sizes (matching NextUI's defines.h)
 // ---------------------------------------------------------------------------
 
@@ -151,6 +174,7 @@ static GLuint link_program(GLuint vs, GLuint fs) {
 // ---------------------------------------------------------------------------
 
 static int ovl_sdl_init(int screen_w, int screen_h) {
+	ovl_load_gl3_procs();
 	s_screenW = screen_w;
 	s_screenH = screen_h;
 
@@ -193,7 +217,6 @@ static int ovl_sdl_init(int screen_w, int screen_h) {
 		if (!s_fonts[i]) {
 			fprintf(stderr, "[OverlaySDL] TTF_OpenFont(%s, %d) failed: %s\n",
 					font_path, font_sizes[i], TTF_GetError());
-			// Clean up already-opened fonts
 			for (int j = 0; j < i; j++) {
 				TTF_CloseFont(s_fonts[j]);
 				s_fonts[j] = NULL;
@@ -229,8 +252,10 @@ static int ovl_sdl_init(int screen_w, int screen_h) {
 
 	// --- GL setup ---
 	// Save GL state during init (same as OverlayGL.cpp pattern)
+	// Note: skip querying GL_VERTEX_ARRAY_BINDING — can crash on Mali drivers
+	// when the render manager's VAO state is unexpected. Just reset to 0.
 	GLint savedVAO = 0, savedVBO = 0, savedTex = 0, savedUnpackAlign = 4;
-	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &savedVAO);
+	pfn_glBindVertexArray(0);
 	glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &savedVBO);
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTex);
 	glGetIntegerv(GL_UNPACK_ALIGNMENT, &savedUnpackAlign);
@@ -245,7 +270,7 @@ static int ovl_sdl_init(int screen_w, int screen_h) {
 			if (fs)
 				glDeleteShader(fs);
 			// Restore GL state before returning
-			glBindVertexArray(savedVAO);
+			pfn_glBindVertexArray(savedVAO);
 			glBindBuffer(GL_ARRAY_BUFFER, savedVBO);
 			glBindTexture(GL_TEXTURE_2D, savedTex);
 			glPixelStorei(GL_UNPACK_ALIGNMENT, savedUnpackAlign);
@@ -255,7 +280,7 @@ static int ovl_sdl_init(int screen_w, int screen_h) {
 		glDeleteShader(vs);
 		glDeleteShader(fs);
 		if (!s_texProgram) {
-			glBindVertexArray(savedVAO);
+			pfn_glBindVertexArray(savedVAO);
 			glBindBuffer(GL_ARRAY_BUFFER, savedVBO);
 			glBindTexture(GL_TEXTURE_2D, savedTex);
 			glPixelStorei(GL_UNPACK_ALIGNMENT, savedUnpackAlign);
@@ -265,9 +290,9 @@ static int ovl_sdl_init(int screen_w, int screen_h) {
 	}
 
 	// VAO/VBO for textured fullscreen quad (6 verts * 4 floats: pos.xy + uv.xy)
-	glGenVertexArrays(1, &s_texVAO);
+	pfn_glGenVertexArrays(1, &s_texVAO);
 	glGenBuffers(1, &s_texVBO);
-	glBindVertexArray(s_texVAO);
+	pfn_glBindVertexArray(s_texVAO);
 	glBindBuffer(GL_ARRAY_BUFFER, s_texVBO);
 	glBufferData(GL_ARRAY_BUFFER, 6 * 4 * (GLsizeiptr)sizeof(float), NULL, GL_DYNAMIC_DRAW);
 	GLint posLoc = glGetAttribLocation(s_texProgram, "aPos");
@@ -277,7 +302,7 @@ static int ovl_sdl_init(int screen_w, int screen_h) {
 	glEnableVertexAttribArray(uvLoc);
 	glVertexAttribPointer(uvLoc, 2, GL_FLOAT, GL_FALSE, 4 * (GLsizei)sizeof(float),
 						  (void*)(2 * sizeof(float)));
-	glBindVertexArray(0);
+	pfn_glBindVertexArray(0);
 
 	// Overlay texture
 	glGenTextures(1, &s_overlayTexture);
@@ -289,7 +314,7 @@ static int ovl_sdl_init(int screen_w, int screen_h) {
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	// Restore GL state
-	glBindVertexArray(savedVAO);
+	pfn_glBindVertexArray(savedVAO);
 	glBindBuffer(GL_ARRAY_BUFFER, savedVBO);
 	glBindTexture(GL_TEXTURE_2D, savedTex);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, savedUnpackAlign);
@@ -332,7 +357,7 @@ static void ovl_sdl_destroy(void) {
 		s_texProgram = 0;
 	}
 	if (s_texVAO) {
-		glDeleteVertexArrays(1, &s_texVAO);
+		pfn_glDeleteVertexArrays(1, &s_texVAO);
 		s_texVAO = 0;
 	}
 	if (s_texVBO) {
@@ -378,11 +403,11 @@ static void ovl_sdl_capture_frame(void) {
 			uint8_t r = src_row[x * 4 + 0];
 			uint8_t g = src_row[x * 4 + 1];
 			uint8_t b = src_row[x * 4 + 2];
-			uint8_t a = src_row[x * 4 + 3];
-			// ARGB8888: byte order in memory is B, G, R, A on little-endian
-			// SDL_PIXELFORMAT_ARGB8888 stores as uint32 = (A<<24)|(R<<16)|(G<<8)|B
+			// Force alpha to 255 — GL framebuffer alpha is often 0 for opaque
+			// game content, which would make saved screenshots invisible when
+			// loaded and drawn with SDL_BLENDMODE_BLEND
 			uint32_t* dst_px = (uint32_t*)(dst_row + x * 4);
-			*dst_px = ((uint32_t)a << 24) | ((uint32_t)r << 16) |
+			*dst_px = 0xFF000000u | ((uint32_t)r << 16) |
 					  ((uint32_t)g << 8) | (uint32_t)b;
 		}
 	}
@@ -538,7 +563,10 @@ static void ovl_sdl_begin_frame(void) {
 	glGetIntegerv(GL_BLEND_SRC_ALPHA, &s_savedBlendSrcAlpha);
 	glGetIntegerv(GL_BLEND_DST_ALPHA, &s_savedBlendDstAlpha);
 	glGetIntegerv(GL_CURRENT_PROGRAM, &s_savedProgram);
-	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &s_savedVAO);
+	// Skip querying GL_VERTEX_ARRAY_BINDING — crashes on Mali drivers when
+	// the render manager leaves VAOs in unexpected state. Just reset to 0.
+	s_savedVAO = 0;
+	pfn_glBindVertexArray(0);
 	glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &s_savedVBO);
 	glGetIntegerv(GL_ACTIVE_TEXTURE, &s_savedActiveTexUnit);
 	glActiveTexture(GL_TEXTURE0);
@@ -638,11 +666,11 @@ static void ovl_sdl_end_frame(void) {
 	glUseProgram(s_texProgram);
 	glUniform1i(s_texLocTexture, 0);
 
-	glBindVertexArray(s_texVAO);
+	pfn_glBindVertexArray(s_texVAO);
 	glBindBuffer(GL_ARRAY_BUFFER, s_texVBO);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, (GLsizeiptr)sizeof(verts), verts);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
+	pfn_glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glUseProgram(0);
 
@@ -674,7 +702,7 @@ static void ovl_sdl_end_frame(void) {
 
 	// Restore object bindings (critical for GLideN64's cached state on PowerVR)
 	glUseProgram(s_savedProgram);
-	glBindVertexArray(s_savedVAO);
+	pfn_glBindVertexArray(s_savedVAO);
 	glBindBuffer(GL_ARRAY_BUFFER, s_savedVBO);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, s_savedTex0);

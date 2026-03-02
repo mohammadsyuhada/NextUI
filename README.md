@@ -1,4 +1,4 @@
-# NextUI Redux
+# NX Redux
 
 **My vision of how NextUI should be.**
 Minimal on the surface. Structured underneath. Built to last.
@@ -24,7 +24,7 @@ But over time I found myself wanting two things the upstream project couldn't gi
 1. **Creative freedom** — the ability to add features and UX improvements without waiting for upstream approval or aligning with someone else's roadmap.
 2. **Structural clarity** — cleaner code organization, consistent formatting, and a codebase that's easier to maintain and extend.
 
-NextUI Redux is where those two goals meet.
+NX Redux is where those two goals meet.
 
 This is not a cosmetic fork.
 It is a deliberate divergence — feature-driven and structure-focused.
@@ -79,15 +79,20 @@ New Features:
     - Optimized configurations for both platform.
     - Custom in-game menu with consistent UI styling with system.
     - Save state with screenshot.
+- Bundled `PPSSPP Playstation Portable` emulator 
+    - Optimized configurations for both platform.
+    - Custom in-game menu with consistent UI styling with system.
+    - Save state with screenshot.
 - Bundled `Portmaster` in the Tools.
     - Configured by default with Nintendo input layout
     - Optimized configurations for both platform.
 
-
 Upcoming Features:
 - Overlay for TG5050
+- Built-in ROMs collection management
 - Integration with [Netplay](https://github.com/mohammadsyuhada/nextui-netplay)
 - Netplay for `Mupen64Plus Nintendo 64` emulator
+- Netplay for 'PPS
 - Minarch refactor
 
 Ongoing focus areas:
@@ -121,4 +126,4 @@ Modifications in this repository are also distributed under GPL-3.0.
 See the [LICENSE](LICENSE) file for details.
 
 
-> *NextUI Redux is an independent fork and is not affiliated with the original NextUI project.*
+> *NX Redux is an independent fork and is not affiliated with the original NextUI project.*

@@ -43,10 +43,11 @@ $(REQUIRES_JSTEST):
 $(REQUIRES_UNZIP60):
 	git clone --depth 1 https://github.com/shauninman/unzip60.git $(REQUIRES_UNZIP60)
 
-$(REQUIRES_MUPEN64PLUS):
+$(REQUIRES_MUPEN64PLUS)/mupen64plus-core:
 	mkdir -p $(REQUIRES_MUPEN64PLUS)
 	git clone --depth 1 https://github.com/mupen64plus/mupen64plus-core.git $(REQUIRES_MUPEN64PLUS)/mupen64plus-core
 	git clone --depth 1 https://github.com/mupen64plus/mupen64plus-ui-console.git $(REQUIRES_MUPEN64PLUS)/mupen64plus-ui-console
+	cd $(REQUIRES_MUPEN64PLUS)/mupen64plus-ui-console && git apply ../mupen64plus-ui-console.patch
 	git clone --depth 1 --recurse-submodules https://github.com/gonetz/GLideN64.git $(REQUIRES_MUPEN64PLUS)/GLideN64-standalone
 
 include ../all/readmes/makefile

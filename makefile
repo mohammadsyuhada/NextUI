@@ -36,7 +36,6 @@ RELEASE_NAME ?= NextUI-$(RELEASE_TIME)$(RELEASE_BETA)
 # Extra paks to ship
 VENDOR_DEST := ./build/VENDOR/Tools
 PACKAGE_URL_MAPPINGS := \
-	"https://github.com/UncleJunVIP/nextui-pak-store/releases/latest/download/Pak.Store.pakz nextui.pak_store.pakz"
 	# add more URLs as needed
 
 ###########################################################
@@ -308,7 +307,7 @@ package: tidy
 
 	# Move renamed .pakz files into base folder
 	mkdir -p ./build/BASE
-	mv $(VENDOR_DEST)/* ./build/BASE/
+	-mv $(VENDOR_DEST)/* ./build/BASE/ 2>/dev/null; true
 
 	# --- Per-platform packaging ---
 	@for plat in $(PLATFORMS); do \
